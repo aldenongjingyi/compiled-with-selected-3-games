@@ -13,9 +13,9 @@ const STAT_CONFIG = {
       'bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
   },
   prototype: {
-    label: 'Prototype',
+    label: 'Coming Soon',
     className:
-      'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+      'bg-brand-orange/10 text-brand-orange dark:bg-brand-orange/20 dark:text-orange-300',
   },
 } as const
 
@@ -47,17 +47,17 @@ export default function GameCard({ game }: { game: GameEntry }) {
       onClick={isPlaceholder ? e => e.preventDefault() : undefined}
       className={[
         'group flex flex-col rounded-card border overflow-hidden',
-        'border-slate-200 dark:border-slate-800',
+        'border-brand-orange/10 dark:border-slate-800',
         'bg-white dark:bg-slate-900',
         'shadow-card',
         'transition-all duration-300 ease-apple',
         isPlaceholder
-          ? 'opacity-60 cursor-default'
-          : 'hover:shadow-card-hover hover:scale-[1.03] hover:-translate-y-0.5 cursor-pointer',
+          ? 'opacity-50 cursor-default'
+          : 'hover:shadow-card-hover hover:scale-[1.03] hover:-translate-y-0.5 hover:border-brand-orange/30 cursor-pointer',
       ].join(' ')}
     >
       {/* Thumbnail */}
-      <div className="h-40 bg-slate-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden">
+      <div className="h-40 bg-makan-cream dark:bg-slate-800 flex items-center justify-center overflow-hidden">
         {game.thumbnailComponent ? (
           // SVG React component — auto-updates when the component changes
           <game.thumbnailComponent />
@@ -69,7 +69,7 @@ export default function GameCard({ game }: { game: GameEntry }) {
             onError={() => setImgError(true)}
           />
         ) : (
-          <span className="text-5xl font-bold text-slate-300 dark:text-slate-600 select-none">
+          <span className="text-5xl font-black text-brand-orange/25 dark:text-slate-600 select-none">
             {game.title[0]}
           </span>
         )}
@@ -79,16 +79,16 @@ export default function GameCard({ game }: { game: GameEntry }) {
       <div className="flex flex-col flex-1 p-4 gap-2">
         {/* Title + category */}
         <div className="flex items-start justify-between gap-2">
-          <h2 className="font-semibold text-slate-900 dark:text-white text-base leading-snug">
+          <h2 className="font-black text-makan-brown dark:text-white text-base leading-snug">
             {game.title}
           </h2>
-          <span className="shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+          <span className="shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full bg-brand-orange/10 dark:bg-slate-800 text-brand-orange dark:text-orange-400">
             {game.category}
           </span>
         </div>
 
         {/* Description */}
-        <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed flex-1">
+        <p className="text-sm text-makan-brown-2 dark:text-slate-400 leading-relaxed flex-1 font-semibold">
           {game.description}
         </p>
 

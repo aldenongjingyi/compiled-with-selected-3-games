@@ -18,7 +18,7 @@ export const GAMES: GameEntry[] = [
     id: 'makanbox',
     title: 'MakanBox',
     description:
-      'Deal a hand of random food shop cards from Sunway Pyramid. Tap a card to reveal your restaurant suggestion.',
+      'Pick a mystery lunchbox from Sunway Pyramid — open it to reveal your restaurant surprise!',
     category: 'Randomiser',
     tags: ['casual', 'food'],
     stats: {},

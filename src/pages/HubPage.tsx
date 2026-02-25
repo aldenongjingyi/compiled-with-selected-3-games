@@ -29,17 +29,17 @@ export default function HubPage({ theme, onToggleTheme }: Props) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white">
+    <div className="min-h-screen bg-makan-cream dark:bg-slate-950 text-makan-brown dark:text-white">
       <Header theme={theme} onToggleTheme={onToggleTheme} />
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
         {/* Hero */}
         <div className="mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white mb-1">
-            Game Hub
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-makan-brown dark:text-white mb-1">
+            What's for Makan? 🍱
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 text-sm">
-            {GAMES.length} demo games — click any card to play
+          <p className="text-makan-brown-2 dark:text-slate-400 text-sm font-semibold">
+            {GAMES.length} fun ways to pick your next meal
           </p>
         </div>
 
@@ -78,13 +78,13 @@ export default function HubPage({ theme, onToggleTheme }: Props) {
           </div>
         ) : (
           <div className="py-20 text-center">
-            <p className="text-4xl mb-4">🎮</p>
-            <p className="text-slate-500 dark:text-slate-400 text-base mb-3">
+            <p className="text-4xl mb-4">🍜</p>
+            <p className="text-makan-brown-2 dark:text-slate-400 text-base mb-3 font-semibold">
               No games found — try clearing your filters.
             </p>
             <button
               onClick={clearAllFilters}
-              className="text-sm text-brand-green hover:underline font-medium"
+              className="text-sm text-brand-orange hover:underline font-bold"
             >
               Clear all filters
             </button>
@@ -92,8 +92,8 @@ export default function HubPage({ theme, onToggleTheme }: Props) {
         )}
       </main>
 
-      <footer className="max-w-5xl mx-auto px-4 sm:px-6 pb-8 text-center text-xs text-slate-400 dark:text-slate-600">
-        Map72 Game Hub · Data sourced from Sunway Malls
+      <footer className="max-w-5xl mx-auto px-4 sm:px-6 pb-8 text-center text-xs text-makan-brown-muted dark:text-slate-600 font-semibold">
+        MakanHub by Map72 · Restaurant data sourced from Sunway Malls
       </footer>
     </div>
   )
