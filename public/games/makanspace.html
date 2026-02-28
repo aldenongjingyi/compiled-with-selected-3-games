@@ -142,16 +142,28 @@
       pointer-events: none;
     }
 
-    /* Craters — flat dark with hard Borderlands outline */
-    .a-c1, .a-c2, .a-c3 {
+    /* Craters — flat dark with hard Borderlands outline (size/position set by JS) */
+    .a-crater {
       position: absolute;
       border-radius: 50%;
       background: var(--cd);
       box-shadow: 0 0 0 2px #000;
+      pointer-events: none;
     }
-    .a-c1 { width: 27%; height: 23%; top: 37%; left: 21%; opacity: 1; }
-    .a-c2 { width: 17%; height: 14%; top: 20%; left: 56%; opacity: 1; }
-    .a-c3 { width: 12%; height: 11%; top: 57%; left: 62%; opacity: 1; }
+
+    /* Jagged asteroid — clip-path replaces border-radius, drop-shadow replaces box-shadow */
+    .a-body.jagged {
+      box-shadow: none;
+      border-radius: 0 !important;
+    }
+    .a-scene.jagged {
+      filter: drop-shadow(0 0 3px rgba(0,0,0,0.98))
+              drop-shadow(0 0 7px rgba(0,0,0,0.72));
+    }
+
+    /* Ice / crystal variant — override highlight and shadow lobes */
+    .asteroid.ice .a-body::before { background: rgba(255,255,255,0.52); }
+    .asteroid.ice .a-body::after  { background: rgba(100,190,255,0.22); }
 
     /* Crack lines — bold black on open (Borderlands graphic) */
     .a-crack {
@@ -542,9 +554,20 @@
     '54% 46% 64% 36% / 48% 54% 44% 56%',
   ];
 
+  // Jagged rock shapes — clip-path polygons for ~40% of asteroids
+  const JAGGED_SHAPES = [
+    'polygon(52% 0%, 84% 10%, 100% 38%, 92% 68%, 74% 90%, 44% 100%, 16% 88%, 0% 60%, 6% 28%, 30% 6%)',
+    'polygon(60% 2%, 88% 18%, 98% 46%, 90% 74%, 68% 94%, 38% 100%, 12% 86%, 2% 56%, 8% 24%, 36% 4%)',
+    'polygon(48% 0%, 78% 8%, 100% 34%, 96% 64%, 80% 88%, 52% 100%, 20% 96%, 2% 68%, 4% 32%, 22% 8%)',
+    'polygon(42% 4%, 76% 0%, 100% 28%, 98% 58%, 76% 92%, 46% 100%, 14% 84%, 0% 50%, 8% 18%, 28% 2%)',
+    'polygon(56% 0%, 90% 14%, 100% 50%, 82% 84%, 56% 100%, 24% 98%, 4% 74%, 0% 40%, 14% 12%, 40% 2%)',
+    'polygon(50% 2%, 80% 0%, 100% 32%, 94% 66%, 70% 96%, 38% 100%, 8% 82%, 0% 46%, 10% 16%, 32% 4%)',
+  ];
+
   // ── State ─────────────────────────────────────────────────
   let allShops      = [];
   let asteroids     = [];
+  let trails        = []; // debris trail particles drawn on starCanvas
   let selectedAst   = null;
   let running       = false;
   let lastTime      = 0;
@@ -553,8 +576,8 @@
   let activeFilters = new Set();
   let cameraVx      = 0; // shared pan velocity — all asteroids ride this together
 
-  const TARGET_ASTEROIDS = 16; // always try to keep this many on screen
-  const SPAWN_GAP        = 380; // min ms between consecutive spawns
+  const TARGET_ASTEROIDS = 22; // on-screen target — drives count-based fill
+  const SPAWN_GAP        = 300; // min ms between consecutive spawns
 
   // ── Filter logic ──────────────────────────────────────────
   function getFilteredShops() {
@@ -673,7 +696,7 @@
   const starCanvas = document.getElementById('starfield');
   const starCtx    = starCanvas.getContext('2d');
   let   stars        = [];
-  let   bgPlanets    = [];
+  let   bgWisps      = [];
   let   bgShoots     = [];
   let   bgShootTimer = 0;
 
@@ -700,50 +723,61 @@
       }
     });
 
-    // Distant galaxy cluster — dense elliptical smear of dim stars
-    const gx = W * (0.18 + Math.random() * 0.64);
-    const gy = H * (0.12 + Math.random() * 0.76);
-    const gRx = 55 + Math.random() * 75, gRy = 22 + Math.random() * 38;
-    const gA  = Math.random() * Math.PI;
-    for (let i = 0; i < 70; i++) {
-      const ang  = Math.random() * Math.PI * 2;
-      const dist = Math.random() * Math.random(); // biased toward centre
-      const ex   = dist * Math.cos(ang) * gRx, ey = dist * Math.sin(ang) * gRy;
-      stars.push({
-        x:          gx + ex * Math.cos(gA) - ey * Math.sin(gA),
-        y:          gy + ex * Math.sin(gA) + ey * Math.cos(gA),
-        size:       0.3 + Math.random() * 0.7,
-        speed:      0.04 + Math.random() * 0.04,
-        alpha:      0.18 + Math.random() * 0.32,
-        phase:      Math.random() * Math.PI * 2,
-        phaseSpeed: 0.3 + Math.random() * 1.0,
-      });
-    }
-
-    // Background planets — Borderlands style
-    bgPlanets = [];
-    bgShoots  = [];
-    bgShootTimer = 2000 + Math.random() * 3000;
-    const PCOLS = [
-      { body: '#4A3A9C', hi: 'rgba(150,130,255,0.24)', ring: 'rgba(130,110,240,0.80)' },
-      { body: '#9C3A5E', hi: 'rgba(255,130,165,0.24)', ring: 'rgba(220,100,145,0.80)' },
-      { body: '#9C7A36', hi: 'rgba(255,215,120,0.24)', ring: 'rgba(210,165,70,0.80)'  },
-      { body: '#30907E', hi: 'rgba(120,255,235,0.24)', ring: 'rgba(70,195,170,0.80)'  },
-      { body: '#6E3A9C', hi: 'rgba(200,140,255,0.24)', ring: 'rgba(170,100,230,0.80)' },
+    // Galaxy clusters — 4 elliptical smears with colour tints
+    const GCOLS = [
+      [255, 255, 255],   // neutral white
+      [180, 140, 255],   // purple
+      [140, 190, 255],   // blue
+      [255, 215, 140],   // gold
     ];
-    const pCount = 2 + Math.floor(Math.random() * 2);
-    for (let i = 0; i < pCount; i++) {
-      const col = PCOLS[i % PCOLS.length];
-      const r   = 36 + Math.random() * 54;
-      bgPlanets.push({
-        x:          W * (0.06 + Math.random() * 0.88),
-        y:          H * (0.06 + Math.random() * 0.88),
-        r, col,
-        hasRing:    Math.random() < 0.50,
-        ringTilt:   0.20 + Math.random() * 0.20,
-        ringAngle:  (Math.random() - 0.5) * 0.8,
-        stripes:    Math.random() < 0.45,
-        alpha:      0.72 + Math.random() * 0.28,
+    GCOLS.forEach(col => {
+      const gx  = W * (0.08 + Math.random() * 0.84);
+      const gy  = H * (0.08 + Math.random() * 0.84);
+      const gRx = 45 + Math.random() * 85, gRy = 16 + Math.random() * 42;
+      const gA  = Math.random() * Math.PI;
+      const cnt = 80 + Math.floor(Math.random() * 40);
+      for (let i = 0; i < cnt; i++) {
+        const ang  = Math.random() * Math.PI * 2;
+        const dist = Math.random() * Math.random();
+        const ex   = dist * Math.cos(ang) * gRx, ey = dist * Math.sin(ang) * gRy;
+        stars.push({
+          x:          gx + ex * Math.cos(gA) - ey * Math.sin(gA),
+          y:          gy + ex * Math.sin(gA) + ey * Math.cos(gA),
+          size:       0.4 + Math.random() * 1.1,
+          speed:      0.03 + Math.random() * 0.04,
+          alpha:      0.70 + Math.random() * 0.30,
+          phase:      Math.random() * Math.PI * 2,
+          phaseSpeed: 0.3 + Math.random() * 1.0,
+          cr: col[0], cg: col[1], cb: col[2],
+        });
+      }
+    });
+
+    // Nebula wisps — slow drifting elongated colour blobs
+    bgWisps = [];
+    bgShoots = [];
+    bgShootTimer = 2000 + Math.random() * 3000;
+    const WCOLS = [
+      [120, 55, 255],   // purple
+      [50,  140, 255],  // blue
+      [55,  210, 185],  // teal
+      [255, 75,  140],  // pink
+      [255, 165,  40],  // amber
+      [140,  60, 220],  // violet
+    ];
+    for (let i = 0; i < 6; i++) {
+      const col = WCOLS[i % WCOLS.length];
+      bgWisps.push({
+        cx:         W * (0.05 + Math.random() * 0.90),
+        cy:         H * (0.05 + Math.random() * 0.90),
+        rx:         W * (0.28 + Math.random() * 0.30),
+        ry:         H * (0.10 + Math.random() * 0.16),
+        angle:      Math.random() * Math.PI,
+        vx:         0.4 + Math.random() * 0.9,
+        alpha:      0.50 + Math.random() * 0.30,
+        phase:      Math.random() * Math.PI * 2,
+        phaseSpeed: 0.12 + Math.random() * 0.22,
+        r: col[0], g: col[1], b: col[2],
       });
     }
   }
@@ -754,6 +788,12 @@
       s.x     -= s.speed * dt * 0.06;
       s.phase += s.phaseSpeed * dt * 0.001;
       if (s.x < -2) s.x = W + 2;
+    }
+    // Nebula wisps drift
+    for (const w of bgWisps) {
+      w.cx    -= w.vx * dt * 0.001;
+      w.phase += w.phaseSpeed * dt * 0.001;
+      if (w.cx < -w.rx) w.cx = W + w.rx;
     }
     // Shooting stars
     bgShootTimer -= dt;
@@ -783,19 +823,42 @@
     const ctx = starCtx;
     ctx.clearRect(0, 0, starCanvas.width, starCanvas.height);
 
-    // Planets (drawn behind stars)
-    for (const p of bgPlanets) drawPlanet(p);
+    // Nebula wisps — drawn deepest, behind everything
+    for (const w of bgWisps) {
+      const a = w.alpha * (0.75 + 0.25 * Math.sin(w.phase));
+      ctx.save();
+      ctx.translate(w.cx, w.cy);
+      ctx.rotate(w.angle);
+      ctx.scale(1, w.ry / w.rx);
+      const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, w.rx);
+      grad.addColorStop(0,   `rgba(${w.r},${w.g},${w.b},${a.toFixed(3)})`);
+      grad.addColorStop(0.5, `rgba(${w.r},${w.g},${w.b},${(a * 0.65).toFixed(3)})`);
+      grad.addColorStop(1,   `rgba(${w.r},${w.g},${w.b},0)`);
+      ctx.beginPath();
+      ctx.arc(0, 0, w.rx, 0, Math.PI * 2);
+      ctx.fillStyle = grad;
+      ctx.fill();
+      ctx.restore();
+    }
 
-    // Stars + galaxy cluster dots
+    // Stars + tinted galaxy cluster dots
     for (const s of stars) {
       const a = s.alpha * (0.68 + 0.32 * Math.sin(s.phase));
       ctx.beginPath();
       ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(255,255,255,${a.toFixed(3)})`;
+      ctx.fillStyle = `rgba(${s.cr||255},${s.cg||255},${s.cb||255},${a.toFixed(3)})`;
       ctx.fill();
     }
 
-    // Shooting stars (drawn on top of stars)
+    // Debris trails (asteroid wakes — behind div layer, above background)
+    for (const t of trails) {
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, t.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${t.tr},${t.tg},${t.tb},${t.alpha.toFixed(3)})`;
+      ctx.fill();
+    }
+
+    // Shooting stars (drawn on top)
     for (const s of bgShoots) {
       const mag  = Math.hypot(s.vx, s.vy);
       const dx   = s.vx / mag, dy = s.vy / mag;
@@ -811,65 +874,6 @@
       ctx.lineWidth   = 1.5;
       ctx.stroke();
     }
-  }
-
-  function drawPlanet(p) {
-    const ctx = starCtx;
-    ctx.save();
-    ctx.globalAlpha = p.alpha;
-
-    // Ring — drawn first so planet body covers the back half
-    if (p.hasRing) {
-      ctx.beginPath();
-      ctx.ellipse(p.x, p.y, p.r * 2.0, p.r * 2.0 * p.ringTilt, p.ringAngle, 0, Math.PI * 2);
-      ctx.strokeStyle = '#000';
-      ctx.lineWidth   = p.r * 0.40;
-      ctx.stroke();
-      ctx.strokeStyle = p.col.ring;
-      ctx.lineWidth   = p.r * 0.30;
-      ctx.stroke();
-    }
-
-    // Planet body fill
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-    ctx.fillStyle = p.col.body;
-    ctx.fill();
-
-    // Gas stripes (clipped to body)
-    if (p.stripes) {
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.r - 1.5, 0, Math.PI * 2);
-      ctx.clip();
-      for (let i = 0; i < 4; i++) {
-        const sy = p.y - p.r * 0.55 + i * p.r * 0.40;
-        ctx.fillStyle = 'rgba(0,0,0,0.18)';
-        ctx.fillRect(p.x - p.r, sy, p.r * 2, p.r * 0.16);
-      }
-      ctx.restore();
-    }
-
-    // Hard black outline (Borderlands style)
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth   = 3;
-    ctx.stroke();
-
-    // Flat highlight lobe — top-left
-    ctx.beginPath();
-    ctx.ellipse(p.x - p.r * 0.28, p.y - p.r * 0.28, p.r * 0.50, p.r * 0.38, -0.6, 0, Math.PI * 2);
-    ctx.fillStyle = p.col.hi;
-    ctx.fill();
-
-    // Flat shadow lobe — bottom-right
-    ctx.beginPath();
-    ctx.ellipse(p.x + p.r * 0.30, p.y + p.r * 0.28, p.r * 0.44, p.r * 0.34, -0.6, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(0,0,0,0.22)';
-    ctx.fill();
-
-    ctx.restore();
   }
 
   // ── Sparkle burst ─────────────────────────────────────────
@@ -903,39 +907,85 @@
   function nextShop()    { if (!shopQueue.length) refillQueue(); return shopQueue.pop(); }
 
   // ── Asteroid factory ──────────────────────────────────────
-  function makeAsteroid(shop, pal, variant, depth, prefill = false) {
+  function makeAsteroid(shop, pal, variant, depth, prefill = false, prefillIdx = 0, prefillTotal = 1) {
     const stage  = document.getElementById('stage');
     const W      = stage.offsetWidth;
     const H      = stage.offsetHeight;
     const SIZES  = ['xs', 'sm', 'md', 'lg', 'xl'];
     const szKey  = SIZES[Math.min(4, Math.floor(depth * 5))];
-    // Prefill: scatter across the full screen so the field looks already populated.
-    // Normal spawns enter from just off the right edge as usual.
-    const initX  = prefill ? W * (0.02 + Math.random() * 1.26) : W + 180;
+    // Prefill: stratified x — divide [0, 1.4W] into prefillTotal zones and place
+    // each asteroid randomly within its zone. Prevents random clumping on startup
+    // while still looking natural. Normal spawns enter from just off the right edge.
+    const zoneW  = prefill ? (W * 1.40) / prefillTotal : 0;
+    const initX  = prefill ? prefillIdx * zoneW + Math.random() * zoneW : W + 180;
     const initY  = H * (0.06 + Math.random() * 0.88);
     const shape  = SHAPES[Math.floor(Math.random() * SHAPES.length)];
 
+    // ── Variation rolls ──────────────────────────────────────
+    // Jagged (40%): polygon clip-path instead of smooth border-radius blob
+    const isJagged = Math.random() < 0.40;
+    const clipShape = isJagged
+      ? JAGGED_SHAPES[Math.floor(Math.random() * JAGGED_SHAPES.length)]
+      : null;
+
+    // Ice/crystal (18%): desaturated blue-white palette override
+    const isIce = variant !== 'empty' && Math.random() < 0.18;
+    const displayPal = isIce
+      ? { c: '#cce8ff', cd: '#8fcff5', glow: 'rgba(180,230,255,0.85)' }
+      : pal;
+
+    // Randomised craters: 1–4, random size/position/ellipticity, no overlaps
+    // Weighted toward fewer craters: 1=45%, 2=30%, 3=17%, 4=8%
+    const _cr = Math.random();
+    const craterCount = _cr < 0.45 ? 1 : _cr < 0.75 ? 2 : _cr < 0.92 ? 3 : 4;
+    let craterHTML = '';
+    const placed = []; // { cx, cy, rx, ry } in percentage units
+    for (let c = 0; c < craterCount; c++) {
+      const cw = 9  + Math.random() * 19;          // width %
+      const ch = cw * (0.65 + Math.random() * 0.5); // height %
+      const rx = cw / 2, ry = ch / 2;
+      let cl, ct, tries = 0, ok = false;
+      while (tries++ < 20) {
+        cl = 8 + Math.random() * (84 - cw);
+        ct = 8 + Math.random() * (84 - ch);
+        const ncx = cl + rx, ncy = ct + ry;
+        ok = placed.every(p => {
+          const dx = ncx - p.cx, dy = ncy - p.cy;
+          // Ellipse overlap: conservative circle check using max radius + 3% gap
+          return Math.hypot(dx, dy) > (rx + p.rx + 3) || Math.hypot(dx / (rx + p.rx + 3), dy / (ry + p.ry + 3)) > 1;
+        });
+        if (ok) break;
+      }
+      if (ok || tries >= 20) { // place anyway after 20 failed attempts (small asteroid)
+        placed.push({ cx: cl + rx, cy: ct + ry, rx, ry });
+        craterHTML += `<div class="a-crater" style="width:${cw.toFixed(1)}%;height:${ch.toFixed(1)}%;left:${cl.toFixed(1)}%;top:${ct.toFixed(1)}%"></div>`;
+      }
+    }
+
     const el = document.createElement('div');
-    el.className = `asteroid ${szKey}${variant ? ' ' + variant : ''}`;
+    el.className = `asteroid ${szKey}${variant ? ' ' + variant : ''}${isIce ? ' ice' : ''}`;
     el.style.left   = `${initX}px`;
     el.style.top    = `${initY}px`;
     el.style.zIndex = Math.round(depth * 18) + 5;
-    el.style.setProperty('--c',    pal.c);
-    el.style.setProperty('--cd',   pal.cd);
-    el.style.setProperty('--glow', pal.glow);
+    el.style.setProperty('--c',    displayPal.c);
+    el.style.setProperty('--cd',   displayPal.cd);
+    el.style.setProperty('--glow', displayPal.glow);
 
     el.innerHTML = `
-      <div class="a-scene">
-        <div class="a-body">
-          <div class="a-c1"></div>
-          <div class="a-c2"></div>
-          <div class="a-c3"></div>
+      <div class="a-scene${isJagged ? ' jagged' : ''}">
+        <div class="a-body${isJagged ? ' jagged' : ''}">
+          ${craterHTML}
           <div class="a-crack"></div>
         </div>
       </div>`;
 
-    // Apply blob shape directly — CSS var() cannot carry "/" in border-radius
-    el.querySelector('.a-body').style.borderRadius = shape;
+    // Apply shape — blob via border-radius, jagged via clip-path
+    const body = el.querySelector('.a-body');
+    if (isJagged) {
+      body.style.clipPath = clipShape;
+    } else {
+      body.style.borderRadius = shape;
+    }
 
     // Tumble: JS updates --body-rot on the .asteroid element each frame.
     // CSS uses rotate: var(--body-rot) on .a-body so hover/select scale still works.
@@ -1060,7 +1110,7 @@
   }
 
   // ── Spawn ─────────────────────────────────────────────────
-  function spawnAsteroid(now, prefill = false) {
+  function spawnAsteroid(now, prefill = false, prefillIdx = 0, prefillTotal = 1) {
     if (!running || !getFilteredShops().length) return;
 
     const shop    = nextShop();
@@ -1072,7 +1122,7 @@
                   : roll < 0.40 ? 'dim'
                   : null;
 
-    makeAsteroid(shop, pal, variant, depth, prefill);
+    makeAsteroid(shop, pal, variant, depth, prefill, prefillIdx, prefillTotal);
     lastSpawn = now;
   }
 
@@ -1084,6 +1134,37 @@
 
     // Count-based fill: spawn whenever below target, respecting min gap
     if (asteroids.length < TARGET_ASTEROIDS && now - lastSpawn > SPAWN_GAP) spawnAsteroid(now);
+
+    // Debris trails — spawn particles behind fast/deep asteroids
+    if (!selectedAst) {
+      for (const a of asteroids) {
+        if (a.depth > 0.45 && Math.random() < a.depth * 0.14) {
+          const hex = a.pal.c.replace('#', '');
+          const tr  = parseInt(hex.slice(0,2), 16);
+          const tg  = parseInt(hex.slice(2,4), 16);
+          const tb  = parseInt(hex.slice(4,6), 16);
+          const sz  = 60 + a.depth * 130; // approximate body pixel size
+          trails.push({
+            x: a.x + sz * 0.30 + (Math.random() - 0.5) * sz * 0.35,
+            y: a.y             + (Math.random() - 0.5) * sz * 0.35,
+            r:     1.0 + Math.random() * sz * 0.022,
+            alpha: 0.50 + Math.random() * 0.35,
+            vx:    a.vx * 0.06 + (Math.random() - 0.5) * 10,
+            vy:    (Math.random() - 0.5) * 16,
+            tr, tg, tb,
+            decay: 1.6 + Math.random() * 1.8,
+          });
+        }
+      }
+    }
+    // Tick + cull trails
+    for (let i = trails.length - 1; i >= 0; i--) {
+      const t = trails[i];
+      t.x     += t.vx * dt * 0.001;
+      t.y     += t.vy * dt * 0.001;
+      t.alpha -= t.decay * dt * 0.001;
+      if (t.alpha <= 0) trails.splice(i, 1);
+    }
 
     tickStars(dt);
     drawStars();
@@ -1133,9 +1214,10 @@
     initStars();
     requestAnimationFrame(loop);
 
-    // Prefill: scatter TARGET_ASTEROIDS across the full screen width so the
-    // field looks already populated the moment gameplay begins.
-    for (let i = 0; i < TARGET_ASTEROIDS; i++) spawnAsteroid(performance.now(), true);
+    // Prefill: stratified across [0, 1.4W] — 22 evenly zoned, random within zone.
+    for (let i = 0; i < TARGET_ASTEROIDS; i++) {
+      spawnAsteroid(performance.now(), true, i, TARGET_ASTEROIDS);
+    }
     // Small gap before count-based fill kicks in (gives prefill time to render)
     lastSpawn = performance.now();
   }
@@ -1147,6 +1229,7 @@
     dismiss();
     asteroids.forEach(a => a.el.remove());
     asteroids = [];
+    trails    = [];
     lastSpawn = -Infinity;
     refillQueue();
   });
