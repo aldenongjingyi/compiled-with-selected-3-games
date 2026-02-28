@@ -1,0 +1,1089 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>MakanGlobe</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100%; height: 100%;
+      overflow: hidden;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: radial-gradient(ellipse at 50% 50%, #1e6b32 0%, #14492a 70%, #0d2e1a 100%);
+    }
+
+    /* Loading Overlay */
+    #loading-overlay {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(ellipse at 50% 50%, #1e6b32 0%, #14492a 70%, #0d2e1a 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      color: #fff;
+      gap: 20px;
+      transition: opacity 0.4s ease;
+    }
+
+    .spinner {
+      width: 44px; height: 44px;
+      border: 4px solid rgba(255,255,255,0.25);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    #loading-overlay p {
+      font-size: 18px;
+      letter-spacing: 0.5px;
+      opacity: 0.9;
+    }
+
+    #tap-prompt {
+      display: none;
+      font-size: 22px;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 16px 36px;
+      border: 2px solid rgba(255,255,255,0.6);
+      border-radius: 12px;
+      transition: background 0.2s, transform 0.2s;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    #tap-prompt:hover {
+      background: rgba(255,255,255,0.1);
+      transform: scale(1.05);
+    }
+
+    /* Globe Scene */
+    #scene {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      perspective: 1000px;
+      overflow: hidden;
+    }
+
+    #globe {
+      position: relative;
+      width: 0; height: 0;
+      transform-style: preserve-3d;
+      will-change: transform;
+    }
+
+    /* Globe Face */
+    .face {
+      position: absolute;
+      width: 110px;
+      height: 85px;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 4px;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      overflow: hidden;
+      transform-origin: center center;
+      cursor: default;
+    }
+
+    .face-inner {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+    }
+
+    .face.selected {
+      box-shadow: 0 0 0 3px #e74c3c, 0 0 30px rgba(231, 76, 60, 0.5);
+      z-index: 10;
+    }
+
+    .face-logo {
+      width: 44px;
+      height: 44px;
+      object-fit: contain;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+
+    .face-logo-fallback {
+      width: 44px;
+      height: 44px;
+      background: linear-gradient(135deg, #e74c3c, #c0392b);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+    }
+
+    .face-title {
+      font-size: 9px;
+      font-weight: 600;
+      text-align: center;
+      color: #333;
+      line-height: 1.2;
+      margin-top: 4px;
+      max-width: 100%;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      word-break: break-word;
+    }
+
+    /* Spin Button */
+    #spin-btn {
+      position: fixed;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 100;
+      padding: 18px 48px;
+      border: none;
+      border-radius: 50px;
+      background: #e74c3c;
+      color: #fff;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
+      box-shadow: 0 4px 20px rgba(231, 76, 60, 0.4);
+      font-family: inherit;
+      display: none;
+    }
+
+    #spin-btn:hover {
+      background: #c0392b;
+      box-shadow: 0 6px 28px rgba(231, 76, 60, 0.5);
+    }
+
+    #spin-btn:active, #spin-btn.pressing {
+      background: #a93226;
+      transform: translateX(-50%) scale(0.95);
+      box-shadow: 0 2px 12px rgba(231, 76, 60, 0.3);
+    }
+
+    #spin-btn:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+
+    /* Result Dialog */
+    #result-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      z-index: 999;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.35s ease;
+    }
+
+    #result-backdrop.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    #result-dialog {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.7);
+      z-index: 1000;
+      background: #fff;
+      border-radius: 20px;
+      padding: 40px 36px 32px;
+      text-align: center;
+      max-width: 340px;
+      width: 90%;
+      opacity: 0;
+      pointer-events: none;
+      transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    }
+
+    #result-dialog.visible {
+      transform: translate(-50%, -50%) scale(1);
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    #result-label {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: #999;
+      margin-bottom: 16px;
+    }
+
+    #result-logo {
+      width: 80px;
+      height: 80px;
+      object-fit: contain;
+      border-radius: 8px;
+      margin: 0 auto 12px;
+      display: block;
+    }
+
+    #result-logo-fallback {
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(135deg, #e74c3c, #c0392b);
+      border-radius: 50%;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+      font-weight: 700;
+      color: #fff;
+      margin: 0 auto 12px;
+    }
+
+    #result-name {
+      font-size: 22px;
+      font-weight: 700;
+      color: #222;
+      margin-bottom: 6px;
+    }
+
+    #result-venue {
+      font-size: 14px;
+      color: #888;
+      margin-bottom: 24px;
+    }
+
+    #spin-again-btn {
+      padding: 12px 32px;
+      border: none;
+      border-radius: 8px;
+      background: #e74c3c;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.2s;
+      font-family: inherit;
+    }
+
+    #spin-again-btn:hover {
+      background: #c0392b;
+      transform: scale(1.05);
+    }
+
+    /* Mobile */
+    @media (max-width: 600px) {
+      .face {
+        width: 75px;
+        height: 58px;
+        border-radius: 6px;
+        padding: 4px 3px;
+      }
+
+      .face-logo, .face-logo-fallback {
+        width: 30px;
+        height: 30px;
+      }
+
+      .face-logo-fallback { font-size: 14px; }
+      .face-title { font-size: 7px; margin-top: 2px; }
+
+      #spin-btn {
+        bottom: 28px;
+        padding: 14px 36px;
+        font-size: 15px;
+      }
+
+      #result-dialog {
+        padding: 28px 24px 24px;
+      }
+
+      #result-name { font-size: 18px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="loading-overlay">
+    <div class="spinner"></div>
+    <p>Loading shops...</p>
+    <div id="tap-prompt">Tap to Start</div>
+  </div>
+
+  <div id="scene">
+    <div id="globe"></div>
+  </div>
+
+  <button id="spin-btn">HOLD TO SPIN</button>
+
+  <div id="result-backdrop"></div>
+  <div id="result-dialog">
+    <div id="result-label">You're eating at</div>
+    <img id="result-logo" alt="">
+    <div id="result-logo-fallback"></div>
+    <h2 id="result-name"></h2>
+    <p id="result-venue"></p>
+    <button id="spin-again-btn">Spin Again</button>
+  </div>
+
+  <script src="data.js"></script>
+  <script>
+    // ========================================
+    // Configuration
+    // ========================================
+    const CONFIG = {
+      ROWS: 6,
+      COLS: 10,
+      FACE_COUNT: 60,
+      RADIUS: window.innerWidth <= 600 ? 180 : 280,
+      FACE_W: window.innerWidth <= 600 ? 75 : 110,
+      FACE_H: window.innerWidth <= 600 ? 58 : 85,
+
+      // Idle drift
+      IDLE_SPEED: 0.15,
+      IDLE_DRIFT_INTERVAL: 3000,
+      DRIFT_LERP: 0.005,
+
+      // Spin physics
+      ACCEL_FACTOR: 1.06,
+      MAX_SPEED: 9,
+      FRICTION: 0.975,
+      STOP_THRESHOLD: 0.08,
+
+      // Tick sound interval (degrees)
+      TICK_INTERVAL: 45,
+
+      // Snap animation
+      SNAP_THRESHOLD: 0.3,
+      SNAP_LERP: 0.08,
+      SNAP_CLOSE_ENOUGH: 0.05,
+    };
+
+    // ========================================
+    // State
+    // ========================================
+    const STATE = {
+      phase: 'idle',  // idle | accelerating | maxSpeed | decelerating | snapping | stopped
+      rotX: 0,
+      rotY: 0,
+      speedX: 0,
+      speedY: 0,
+      driftDirX: 1,
+      driftDirY: 1,
+      driftTargetX: 1,
+      driftTargetY: 1,
+      lastTickAngle: 0,
+      pressing: false,
+      faces: [],      // { element, shop, latDeg, lonDeg }
+      selectedShop: null,
+      animFrameId: null,
+      snapTargetRotX: 0,
+      snapTargetRotY: 0,
+      snapFace: null,
+    };
+
+    // ========================================
+    // Sound Synthesis (Web Audio API)
+    // ========================================
+    let audioCtx = null;
+
+    function initAudio() {
+      if (audioCtx) return;
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    // Short tick — face passing
+    function playTickSound(volume) {
+      if (!audioCtx) return;
+      const now = audioCtx.currentTime;
+      const dur = 0.025;
+      const sr = audioCtx.sampleRate;
+      const len = Math.floor(sr * dur);
+      const buf = audioCtx.createBuffer(1, len, sr);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) {
+        d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+      }
+      const src = audioCtx.createBufferSource();
+      src.buffer = buf;
+
+      const filter = audioCtx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.value = 2500;
+      filter.Q.value = 1.2;
+
+      const gain = audioCtx.createGain();
+      const vol = Math.min(0.15, (volume || 0.05));
+      gain.gain.setValueAtTime(vol, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+
+      src.connect(filter);
+      filter.connect(gain);
+      gain.connect(audioCtx.destination);
+      src.start(now);
+      src.stop(now + dur);
+    }
+
+    // Whoosh — spinning up / down
+    let whooshNode = null;
+    let whooshGain = null;
+    let whooshFilter = null;
+
+    function startWhoosh() {
+      if (!audioCtx || whooshNode) return;
+
+      const bufSize = audioCtx.sampleRate * 2;
+      const buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < bufSize; i++) {
+        d[i] = Math.random() * 2 - 1;
+      }
+
+      whooshNode = audioCtx.createBufferSource();
+      whooshNode.buffer = buf;
+      whooshNode.loop = true;
+
+      whooshFilter = audioCtx.createBiquadFilter();
+      whooshFilter.type = 'bandpass';
+      whooshFilter.frequency.value = 200;
+      whooshFilter.Q.value = 0.8;
+
+      whooshGain = audioCtx.createGain();
+      whooshGain.gain.value = 0;
+
+      whooshNode.connect(whooshFilter);
+      whooshFilter.connect(whooshGain);
+      whooshGain.connect(audioCtx.destination);
+      whooshNode.start();
+    }
+
+    function updateWhoosh(speed) {
+      if (!whooshFilter || !whooshGain) return;
+      const t = audioCtx.currentTime + 0.05;
+      const normSpeed = Math.min(speed / CONFIG.MAX_SPEED, 1);
+      const freq = 200 + normSpeed * 2800;
+      const vol = normSpeed * 0.12;
+      whooshFilter.frequency.linearRampToValueAtTime(freq, t);
+      whooshGain.gain.linearRampToValueAtTime(vol, t);
+    }
+
+    function stopWhoosh() {
+      if (!whooshNode) return;
+      const t = audioCtx.currentTime + 0.1;
+      whooshGain.gain.linearRampToValueAtTime(0, t);
+      setTimeout(() => {
+        try { whooshNode.stop(); } catch(e) {}
+        whooshNode = null;
+        whooshGain = null;
+        whooshFilter = null;
+      }, 200);
+    }
+
+    // Mechanical click — stop
+    function playStopClick() {
+      if (!audioCtx) return;
+      const now = audioCtx.currentTime;
+      const dur = 0.035;
+      const sr = audioCtx.sampleRate;
+      const len = Math.floor(sr * dur);
+      const buf = audioCtx.createBuffer(1, len, sr);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) {
+        d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+      }
+      const src = audioCtx.createBufferSource();
+      src.buffer = buf;
+
+      const filter = audioCtx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.value = 4000;
+      filter.Q.value = 2;
+
+      const gain = audioCtx.createGain();
+      gain.gain.setValueAtTime(0.3, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+
+      src.connect(filter);
+      filter.connect(gain);
+      gain.connect(audioCtx.destination);
+      src.start(now);
+      src.stop(now + dur);
+    }
+
+    // Reveal chime — same pattern as card.html
+    function playRevealSound() {
+      if (!audioCtx) return;
+      const now = audioCtx.currentTime;
+      [523.25, 659.25].forEach((freq, i) => {
+        const osc = audioCtx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        const gain = audioCtx.createGain();
+        const t = i * 0.12;
+        gain.gain.setValueAtTime(0, now + t);
+        gain.gain.linearRampToValueAtTime(0.15, now + t + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + t + 0.4);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now + t);
+        osc.stop(now + t + 0.4);
+      });
+    }
+
+    // Dialog pop tone
+    function playDialogSound() {
+      if (!audioCtx) return;
+      const now = audioCtx.currentTime;
+      const osc = audioCtx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = 392; // G4
+      const gain = audioCtx.createGain();
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.1, now + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(now);
+      osc.stop(now + 0.3);
+    }
+
+    // ========================================
+    // Globe Construction
+    // ========================================
+    function escapeHtml(str) {
+      const d = document.createElement('div');
+      d.textContent = str;
+      return d.innerHTML;
+    }
+
+    function buildGlobe(shops) {
+      const globe = document.getElementById('globe');
+      globe.innerHTML = '';
+      STATE.faces = [];
+
+      const rows = CONFIG.ROWS;
+      const cols = CONFIG.COLS;
+      const radius = CONFIG.RADIUS;
+
+      let idx = 0;
+      for (let r = 0; r < rows; r++) {
+        const latDeg = -60 + r * (120 / (rows - 1));
+        for (let c = 0; c < cols; c++) {
+          const lonDeg = c * (360 / cols);
+          const shop = shops[idx % shops.length];
+          idx++;
+
+          const face = document.createElement('div');
+          face.className = 'face';
+          face.dataset.index = idx - 1;
+
+          const logoSrc = shop.logo || '';
+          const initial = (shop.title || '?').charAt(0).toUpperCase();
+          const safeName = escapeHtml(shop.title || 'Unknown');
+
+          face.innerHTML = `
+            <div class="face-inner">
+              ${logoSrc
+                ? `<img class="face-logo" src="${logoSrc}" alt="${safeName}"
+                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">`
+                : ''}
+              <div class="face-logo-fallback" style="display:${logoSrc ? 'none' : 'flex'}">${initial}</div>
+              <span class="face-title">${safeName}</span>
+            </div>
+          `;
+
+          // Position the face on the sphere
+          face.style.width = CONFIG.FACE_W + 'px';
+          face.style.height = CONFIG.FACE_H + 'px';
+          face.style.marginLeft = (-CONFIG.FACE_W / 2) + 'px';
+          face.style.marginTop = (-CONFIG.FACE_H / 2) + 'px';
+          face.style.transform =
+            `rotateY(${lonDeg}deg) rotateX(${-latDeg}deg) translateZ(${radius}px)`;
+
+          globe.appendChild(face);
+          const inner = face.querySelector('.face-inner');
+          STATE.faces.push({ element: face, inner, shop, latDeg, lonDeg });
+        }
+      }
+    }
+
+    // ========================================
+    // Face Selection — find front-facing face
+    // ========================================
+    function findFrontFace() {
+      const toRad = Math.PI / 180;
+      const globalRotX = STATE.rotX % 360;
+      const globalRotY = STATE.rotY % 360;
+
+      let bestDot = -Infinity;
+      let bestFace = null;
+
+      for (const f of STATE.faces) {
+        // Face normal in local space points along +Z after its placement transform
+        // After global rotation, compute where that normal ends up
+        const lat = -f.latDeg * toRad;
+        const lon = f.lonDeg * toRad;
+
+        // Face normal starts as (0, 0, 1) in face-local space
+        // After rotateX(-lat) and rotateY(lon): normal = (sin(lon)*cos(lat), sin(lat), cos(lon)*cos(lat))
+        let nx = Math.sin(lon) * Math.cos(lat);
+        let ny = Math.sin(lat);
+        let nz = Math.cos(lon) * Math.cos(lat);
+
+        // Apply global rotateX
+        const rx = globalRotX * toRad;
+        const ny2 = ny * Math.cos(rx) - nz * Math.sin(rx);
+        const nz2 = ny * Math.sin(rx) + nz * Math.cos(rx);
+        ny = ny2;
+        nz = nz2;
+
+        // Apply global rotateY
+        const ry = globalRotY * toRad;
+        const nx2 = nx * Math.cos(ry) + nz * Math.sin(ry);
+        const nz3 = -nx * Math.sin(ry) + nz * Math.cos(ry);
+        nx = nx2;
+        nz = nz3;
+
+        // Dot with camera direction (0, 0, 1)
+        if (nz > bestDot) {
+          bestDot = nz;
+          bestFace = f;
+        }
+      }
+
+      return bestFace;
+    }
+
+    // ========================================
+    // Face Orientation — keep content upright
+    // ========================================
+    function updateFaceOrientations() {
+      const toRad = Math.PI / 180;
+      const rx = STATE.rotX * toRad;
+      const ry = STATE.rotY * toRad;
+      const cosRx = Math.cos(rx), sinRx = Math.sin(rx);
+      const cosRy = Math.cos(ry), sinRy = Math.sin(ry);
+
+      for (const f of STATE.faces) {
+        const lat = -f.latDeg * toRad;
+        const lon = f.lonDeg * toRad;
+        const cosLat = Math.cos(lat), sinLat = Math.sin(lat);
+        const cosLon = Math.cos(lon), sinLon = Math.sin(lon);
+
+        // Face-local up vector (0, -1, 0) after face placement:
+        // rotateX(-lat) then rotateY(lon)
+        let ux = -sinLat * sinLon;
+        let uy = -cosLat;
+        let uz = -sinLat * cosLon;
+
+        // Apply globe rotation: rotateY(rotY) then rotateX(rotX)
+        // rotateY first
+        const ux2 = ux * cosRy + uz * sinRy;
+        const uz2 = -ux * sinRy + uz * cosRy;
+        ux = ux2;
+        uz = uz2;
+
+        // rotateX
+        const uy2 = uy * cosRx - uz * sinRx;
+        uy = uy2;
+
+        // If uy > 0, the face's "up" points downward on screen → upside down
+        const flipped = uy > 0;
+        f.inner.style.transform = flipped ? 'rotate(180deg)' : '';
+      }
+    }
+
+    // ========================================
+    // Snap Target Computation
+    // ========================================
+    function closestEquivalentAngle(current, target) {
+      let t = ((target % 360) + 360) % 360;
+      let c = ((current % 360) + 360) % 360;
+      let diff = t - c;
+      if (diff > 180) diff -= 360;
+      if (diff <= -180) diff += 360;
+      return current + diff;
+    }
+
+    function computeSnapTarget(face) {
+      const toRad = Math.PI / 180;
+      const toDeg = 180 / Math.PI;
+
+      const lat = -face.latDeg * toRad;
+      const lon = face.lonDeg * toRad;
+
+      const nx = Math.sin(lon) * Math.cos(lat);
+      const ny = Math.sin(lat);
+      const nz = Math.cos(lon) * Math.cos(lat);
+
+      // Rotation that aligns this face's normal to (0, 0, 1)
+      const targetRxRad = Math.atan2(ny, nz);
+      const targetRyRad = Math.atan2(-nx, Math.sqrt(ny * ny + nz * nz));
+
+      return {
+        targetRxDeg: closestEquivalentAngle(STATE.rotX, targetRxRad * toDeg),
+        targetRyDeg: closestEquivalentAngle(STATE.rotY, targetRyRad * toDeg),
+      };
+    }
+
+    // ========================================
+    // Animation Loop
+    // ========================================
+    function startAnimLoop() {
+      // Random initial drift direction
+      randomizeDrift();
+
+      function loop() {
+        STATE.animFrameId = requestAnimationFrame(loop);
+
+        const speed = Math.sqrt(STATE.speedX * STATE.speedX + STATE.speedY * STATE.speedY);
+
+        switch (STATE.phase) {
+          case 'idle':
+            // Gradually blend current drift direction toward target
+            STATE.driftDirX += (STATE.driftTargetX - STATE.driftDirX) * CONFIG.DRIFT_LERP;
+            STATE.driftDirY += (STATE.driftTargetY - STATE.driftDirY) * CONFIG.DRIFT_LERP;
+            const idleMag = Math.sqrt(STATE.driftDirX ** 2 + STATE.driftDirY ** 2);
+            if (idleMag > 0) { STATE.driftDirX /= idleMag; STATE.driftDirY /= idleMag; }
+            STATE.speedX = CONFIG.IDLE_SPEED * STATE.driftDirX;
+            STATE.speedY = CONFIG.IDLE_SPEED * STATE.driftDirY;
+            break;
+
+          case 'accelerating':
+            STATE.speedX *= CONFIG.ACCEL_FACTOR;
+            STATE.speedY *= CONFIG.ACCEL_FACTOR;
+            // Clamp to max
+            const accSpeed = Math.sqrt(STATE.speedX * STATE.speedX + STATE.speedY * STATE.speedY);
+            if (accSpeed >= CONFIG.MAX_SPEED) {
+              const scale = CONFIG.MAX_SPEED / accSpeed;
+              STATE.speedX *= scale;
+              STATE.speedY *= scale;
+              STATE.phase = 'maxSpeed';
+            }
+            updateWhoosh(Math.sqrt(STATE.speedX * STATE.speedX + STATE.speedY * STATE.speedY));
+            break;
+
+          case 'maxSpeed':
+            updateWhoosh(CONFIG.MAX_SPEED);
+            break;
+
+          case 'decelerating':
+            STATE.speedX *= CONFIG.FRICTION;
+            STATE.speedY *= CONFIG.FRICTION;
+            const decSpeed = Math.sqrt(STATE.speedX * STATE.speedX + STATE.speedY * STATE.speedY);
+            updateWhoosh(decSpeed);
+            if (decSpeed < CONFIG.SNAP_THRESHOLD) {
+              STATE.speedX = 0;
+              STATE.speedY = 0;
+              stopWhoosh();
+
+              const snapFace = findFrontFace();
+              if (snapFace) {
+                const { targetRxDeg, targetRyDeg } = computeSnapTarget(snapFace);
+                STATE.snapTargetRotX = targetRxDeg;
+                STATE.snapTargetRotY = targetRyDeg;
+                STATE.snapFace = snapFace;
+                STATE.phase = 'snapping';
+              } else {
+                STATE.phase = 'stopped';
+                onStopped();
+              }
+            }
+            break;
+
+          case 'snapping':
+            STATE.rotX += (STATE.snapTargetRotX - STATE.rotX) * CONFIG.SNAP_LERP;
+            STATE.rotY += (STATE.snapTargetRotY - STATE.rotY) * CONFIG.SNAP_LERP;
+
+            const dxSnap = Math.abs(STATE.snapTargetRotX - STATE.rotX);
+            const dySnap = Math.abs(STATE.snapTargetRotY - STATE.rotY);
+            if (dxSnap < CONFIG.SNAP_CLOSE_ENOUGH && dySnap < CONFIG.SNAP_CLOSE_ENOUGH) {
+              STATE.rotX = STATE.snapTargetRotX;
+              STATE.rotY = STATE.snapTargetRotY;
+              STATE.phase = 'stopped';
+              onStopped();
+            }
+            break;
+
+          case 'stopped':
+            // No rotation
+            break;
+        }
+
+        // Apply rotation
+        STATE.rotX += STATE.speedX;
+        STATE.rotY += STATE.speedY;
+
+        // Tick sound
+        if (STATE.phase !== 'stopped' && STATE.phase !== 'idle' && STATE.phase !== 'snapping') {
+          const totalAngle = Math.abs(STATE.rotX) + Math.abs(STATE.rotY);
+          if (totalAngle - STATE.lastTickAngle >= CONFIG.TICK_INTERVAL) {
+            const tickVol = Math.min(0.15, speed / CONFIG.MAX_SPEED * 0.15);
+            playTickSound(tickVol);
+            STATE.lastTickAngle = totalAngle;
+          }
+        }
+
+        // Idle tick (softer, slower)
+        if (STATE.phase === 'idle') {
+          const totalAngle = Math.abs(STATE.rotX) + Math.abs(STATE.rotY);
+          if (totalAngle - STATE.lastTickAngle >= CONFIG.TICK_INTERVAL * 3) {
+            playTickSound(0.02);
+            STATE.lastTickAngle = totalAngle;
+          }
+        }
+
+        // Update globe transform
+        const globe = document.getElementById('globe');
+        globe.style.transform = `rotateX(${STATE.rotX}deg) rotateY(${STATE.rotY}deg)`;
+
+        // Keep face content upright
+        updateFaceOrientations();
+      }
+
+      loop();
+    }
+
+    function randomizeDrift() {
+      // Set a new target direction — the actual drift will lerp toward it gradually
+      STATE.driftTargetX = (Math.random() - 0.5) * 2;
+      STATE.driftTargetY = (Math.random() - 0.5) * 2;
+      const mag = Math.sqrt(STATE.driftTargetX * STATE.driftTargetX + STATE.driftTargetY * STATE.driftTargetY);
+      if (mag > 0) {
+        STATE.driftTargetX /= mag;
+        STATE.driftTargetY /= mag;
+      }
+    }
+
+    // Periodically change drift direction during idle
+    setInterval(() => {
+      if (STATE.phase === 'idle') {
+        randomizeDrift();
+      }
+    }, CONFIG.IDLE_DRIFT_INTERVAL);
+
+    // ========================================
+    // Stopped — Select and Show Result
+    // ========================================
+    function onStopped() {
+      playStopClick();
+
+      const best = STATE.snapFace || findFrontFace();
+      STATE.snapFace = null;
+      if (!best) return;
+
+      STATE.selectedShop = best.shop;
+      best.element.classList.add('selected');
+
+      // Brief pause, then reveal
+      setTimeout(() => {
+        playRevealSound();
+        setTimeout(() => {
+          playDialogSound();
+          showResultDialog(best.shop);
+        }, 300);
+      }, 400);
+    }
+
+    // ========================================
+    // Result Dialog
+    // ========================================
+    function showResultDialog(shop) {
+      const backdrop = document.getElementById('result-backdrop');
+      const dialog = document.getElementById('result-dialog');
+      const logo = document.getElementById('result-logo');
+      const logoFallback = document.getElementById('result-logo-fallback');
+      const name = document.getElementById('result-name');
+      const venue = document.getElementById('result-venue');
+
+      // Set content
+      name.textContent = shop.title || 'Unknown';
+      venue.textContent = shop.venue ? `${shop.venue}${shop.level_label ? ' • ' + shop.level_label : ''}` : '';
+
+      if (shop.logo) {
+        logo.src = shop.logo;
+        logo.style.display = 'block';
+        logoFallback.style.display = 'none';
+        logo.onerror = () => {
+          logo.style.display = 'none';
+          logoFallback.style.display = 'flex';
+          logoFallback.textContent = (shop.title || '?').charAt(0).toUpperCase();
+        };
+      } else {
+        logo.style.display = 'none';
+        logoFallback.style.display = 'flex';
+        logoFallback.textContent = (shop.title || '?').charAt(0).toUpperCase();
+      }
+
+      backdrop.classList.add('visible');
+      dialog.classList.add('visible');
+    }
+
+    function hideResultDialog() {
+      const backdrop = document.getElementById('result-backdrop');
+      const dialog = document.getElementById('result-dialog');
+      backdrop.classList.remove('visible');
+      dialog.classList.remove('visible');
+    }
+
+    // ========================================
+    // Button Interaction (press-and-hold)
+    // ========================================
+    function setupButton() {
+      const btn = document.getElementById('spin-btn');
+
+      function onPress(e) {
+        e.preventDefault();
+        if (STATE.phase === 'stopped' || STATE.phase === 'snapping') return;
+
+        STATE.pressing = true;
+        btn.classList.add('pressing');
+
+        if (STATE.phase === 'idle' || STATE.phase === 'decelerating') {
+          // Set initial speed with current drift direction
+          if (STATE.phase === 'idle') {
+            STATE.speedX = CONFIG.IDLE_SPEED * STATE.driftDirX * 3;
+            STATE.speedY = CONFIG.IDLE_SPEED * STATE.driftDirY * 3;
+          }
+          STATE.phase = 'accelerating';
+          startWhoosh();
+        }
+      }
+
+      function onRelease(e) {
+        e.preventDefault();
+        if (!STATE.pressing) return;
+
+        STATE.pressing = false;
+        btn.classList.remove('pressing');
+
+        if (STATE.phase === 'accelerating' || STATE.phase === 'maxSpeed') {
+          STATE.phase = 'decelerating';
+        }
+      }
+
+      // Mouse
+      btn.addEventListener('mousedown', onPress);
+      window.addEventListener('mouseup', onRelease);
+
+      // Touch
+      btn.addEventListener('touchstart', onPress, { passive: false });
+      window.addEventListener('touchend', onRelease, { passive: false });
+      window.addEventListener('touchcancel', onRelease, { passive: false });
+    }
+
+    // ========================================
+    // Reset / Spin Again
+    // ========================================
+    function resetGlobe(shops) {
+      hideResultDialog();
+
+      // Clear selection
+      STATE.faces.forEach(f => f.element.classList.remove('selected'));
+      STATE.selectedShop = null;
+
+      // Re-pick random shops and rebuild
+      const chosen = pickRandom(shops, CONFIG.FACE_COUNT);
+      buildGlobe(chosen);
+
+      // Reset to idle
+      STATE.phase = 'idle';
+      STATE.lastTickAngle = Math.abs(STATE.rotX) + Math.abs(STATE.rotY);
+      randomizeDrift();
+
+      const btn = document.getElementById('spin-btn');
+      btn.disabled = false;
+    }
+
+    // ========================================
+    // Initialization
+    // ========================================
+    let allShops = [];
+
+    async function init() {
+      const overlay = document.getElementById('loading-overlay');
+      const spinnerEl = overlay.querySelector('.spinner');
+      const loadingText = overlay.querySelector('p');
+      const tapPrompt = document.getElementById('tap-prompt');
+      const spinBtn = document.getElementById('spin-btn');
+      const spinAgainBtn = document.getElementById('spin-again-btn');
+      const resultBackdrop = document.getElementById('result-backdrop');
+
+      try {
+        allShops = await loadFBShops();
+
+        // Hide spinner, show tap prompt
+        spinnerEl.style.display = 'none';
+        loadingText.style.display = 'none';
+        tapPrompt.style.display = 'block';
+
+        tapPrompt.addEventListener('click', () => {
+          initAudio();
+          overlay.style.opacity = '0';
+          overlay.style.pointerEvents = 'none';
+
+          setTimeout(() => {
+            overlay.style.display = 'none';
+
+            // Build globe with random shops
+            const chosen = pickRandom(allShops, CONFIG.FACE_COUNT);
+            buildGlobe(chosen);
+
+            // Show spin button
+            spinBtn.style.display = 'block';
+
+            // Start animation
+            startAnimLoop();
+          }, 400);
+        }, { once: true });
+
+        // Spin again
+        spinAgainBtn.addEventListener('click', () => {
+          resetGlobe(allShops);
+        });
+
+        // Clicking backdrop also dismisses
+        resultBackdrop.addEventListener('click', () => {
+          resetGlobe(allShops);
+        });
+
+        // Setup press-and-hold
+        setupButton();
+
+      } catch (err) {
+        console.error('Failed to load data:', err);
+        spinnerEl.style.display = 'none';
+        loadingText.textContent = 'Failed to load data. Ensure datas.json is served from the same origin.';
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
