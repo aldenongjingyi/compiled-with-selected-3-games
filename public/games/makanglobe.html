@@ -57,10 +57,15 @@
     .start-card {
       position: relative; z-index: 1;
       display: flex; flex-direction: column; align-items: center; gap: 10px;
-      background: #ffffff;
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
       border-radius: 28px; padding: 44px 54px 40px;
-      box-shadow: 0 12px 56px rgba(0,0,0,0.10), 0 2px 12px rgba(0,0,0,0.05);
-      border: 1.5px solid rgba(0,0,0,0.06); text-align: center;
+      box-shadow:
+        0 0 0 1px rgba(0,201,160,0.20),
+        0 24px 80px rgba(0,0,0,0.60),
+        0 2px 12px rgba(0,0,0,0.30);
+      border: 1.5px solid rgba(255,255,255,0.65); text-align: center;
     }
     .start-icon {
       font-size: 68px; line-height: 1;
@@ -165,9 +170,12 @@
       z-index: 100; pointer-events: none; display: none;
       font-family: 'Nunito', sans-serif;
       font-size: 11px; font-weight: 800;
-      color: rgba(255, 255, 255, 0.60);
-      letter-spacing: 0.12em; text-transform: uppercase;
-      text-shadow: 0 1px 8px rgba(0,0,0,0.5);
+      color: rgba(255, 255, 255, 0.90);
+      letter-spacing: 0.10em; text-transform: uppercase;
+      background: rgba(0,0,0,0.32);
+      backdrop-filter: blur(8px);
+      padding: 7px 18px; border-radius: 99px;
+      border: 1px solid rgba(255,255,255,0.12);
     }
 
     /* ── Result Backdrop ── */
@@ -185,9 +193,9 @@
       position: fixed; top: 50%; left: 50%;
       transform: translate(-50%, -50%) scale(0.72);
       z-index: 1000;
-      background: #fff; border-radius: 24px;
-      padding: 40px 36px 32px;
-      text-align: center; max-width: 340px; width: 90%;
+      background: #fff; border-radius: 28px;
+      padding: 48px 44px 40px;
+      text-align: center; max-width: 420px; width: 92%;
       opacity: 0; pointer-events: none;
       transition: transform 0.42s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
       box-shadow: 0 24px 64px rgba(0, 0, 0, 0.22);
@@ -198,40 +206,40 @@
     }
     #result-label {
       font-family: 'Nunito', sans-serif;
-      font-size: 10px; font-weight: 800;
+      font-size: 13px; font-weight: 800;
       text-transform: uppercase; letter-spacing: 2.5px;
-      color: #00C9A0; margin-bottom: 18px;
+      color: #00C9A0; margin-bottom: 22px;
     }
     #result-logo {
-      width: 80px; height: 80px;
-      object-fit: contain; border-radius: 12px;
-      margin: 0 auto 14px; display: block;
+      width: 110px; height: 110px;
+      object-fit: contain; border-radius: 16px;
+      margin: 0 auto 18px; display: block;
     }
     #result-logo-fallback {
-      width: 80px; height: 80px;
+      width: 110px; height: 110px;
       background: linear-gradient(135deg, #00C9A0, #4FACFE);
       border-radius: 50%; display: none;
       align-items: center; justify-content: center;
       font-family: 'Nunito', sans-serif;
-      font-size: 36px; font-weight: 900; color: #fff;
-      margin: 0 auto 14px;
+      font-size: 48px; font-weight: 900; color: #fff;
+      margin: 0 auto 18px;
     }
     #result-name {
       font-family: 'Nunito', sans-serif;
-      font-size: 22px; font-weight: 900; color: #111827;
-      margin-bottom: 6px; letter-spacing: -0.02em;
+      font-size: 30px; font-weight: 900; color: #111827;
+      margin-bottom: 8px; letter-spacing: -0.02em;
     }
     #result-venue {
       font-family: 'Nunito', sans-serif;
-      font-size: 13px; color: #6b7280;
-      margin-bottom: 28px; font-weight: 600;
+      font-size: 16px; color: #6b7280;
+      margin-bottom: 32px; font-weight: 600;
     }
     #spin-again-btn {
-      padding: 12px 36px; border: none; border-radius: 50px;
+      padding: 16px 44px; border: none; border-radius: 50px;
       background: linear-gradient(135deg, #00C9A0, #4FACFE);
       color: #fff;
       font-family: 'Nunito', sans-serif;
-      font-size: 15px; font-weight: 800;
+      font-size: 18px; font-weight: 800;
       cursor: pointer;
       box-shadow: 0 4px 16px rgba(0, 201, 160, 0.38);
       transition: transform 0.14s, box-shadow 0.14s;
@@ -256,6 +264,125 @@
       display: none; /* shown once image loads */
       will-change: transform, opacity;
       box-shadow: 0 2px 8px rgba(0,0,0,0.28);
+      filter: drop-shadow(0 2px 6px rgba(0,0,0,0.45));
+    }
+
+    /* ── Swipe Guide ─────────────────────────────────────────────────────── */
+    #swipe-guide {
+      position: fixed;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 110px; height: 110px;
+      pointer-events: none;
+      z-index: 8;
+      opacity: 0;
+      transition: opacity 0.9s ease;
+    }
+    #swipe-guide.visible { opacity: 1; }
+
+    .sg-ring {
+      position: absolute;
+      inset: 18px;
+      border-radius: 50%;
+      border: 1.5px solid rgba(0,201,160,0.65);
+      animation: sg-expand 2.8s ease-out infinite;
+    }
+    .sg-r2 { animation-delay: 1.4s; }
+    @keyframes sg-expand {
+      0%   { transform: scale(1);   opacity: 0.85; }
+      100% { transform: scale(3.2); opacity: 0;    }
+    }
+    .sg-arr {
+      position: absolute;
+      font-family: var(--font);
+      font-size: 22px; font-weight: 900;
+      color: #fff;
+      text-shadow: 0 0 16px rgba(0,201,160,1), 0 0 32px rgba(0,201,160,0.5);
+      animation: sg-glow 2.4s ease-in-out infinite;
+    }
+    .sg-up { top: -28px;    left: 50%; transform: translateX(-50%); animation-delay: 0s;    }
+    .sg-dn { bottom: -28px; left: 50%; transform: translateX(-50%); animation-delay: 0.6s;  }
+    .sg-lt { left: -28px;   top: 50%;  transform: translateY(-50%); animation-delay: 1.2s;  }
+    .sg-rt { right: -28px;  top: 50%;  transform: translateY(-50%); animation-delay: 1.8s;  }
+    @keyframes sg-glow {
+      0%, 100% { opacity: 0.15; }
+      50%       { opacity: 1.00; }
+    }
+
+    /* ── Browse FAB ── */
+    #browse-btn {
+      position: fixed; bottom: 28px; right: 24px;
+      z-index: 20; display: none;
+      padding: 13px 20px;
+      background: linear-gradient(135deg, #00C9A0, #4FACFE);
+      color: #fff; border: none; border-radius: 50px;
+      font-family: var(--font); font-size: 13px; font-weight: 800;
+      cursor: pointer; letter-spacing: 0.02em;
+      box-shadow: 0 4px 20px rgba(0,201,160,0.45);
+      transition: transform 0.15s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.15s ease;
+    }
+    #browse-btn:hover  { transform: scale(1.08); box-shadow: 0 6px 28px rgba(0,201,160,0.60); }
+    #browse-btn:active { transform: scale(0.95); }
+
+    /* ── Browse Sheet ── */
+    #browse-backdrop {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.45); backdrop-filter: blur(4px);
+      z-index: 30; opacity: 0; pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    #browse-backdrop.visible { opacity: 1; pointer-events: auto; }
+
+    #browse-sheet {
+      position: fixed; left: 0; right: 0; bottom: 0;
+      z-index: 31; max-height: 72vh;
+      background: #fff; border-radius: 24px 24px 0 0;
+      display: flex; flex-direction: column;
+      transform: translateY(100%);
+      transition: transform 0.42s cubic-bezier(0.34,1.56,0.64,1);
+      box-shadow: 0 -8px 40px rgba(0,0,0,0.25);
+    }
+    #browse-sheet.visible { transform: translateY(0); }
+
+    #browse-sheet-handle {
+      width: 40px; height: 4px; border-radius: 2px;
+      background: #d1d5db; margin: 12px auto 8px; flex-shrink: 0;
+    }
+    #browse-sheet-title {
+      font-family: var(--font); font-size: 14px; font-weight: 800;
+      color: #111827; padding: 0 20px 12px; text-align: center;
+      border-bottom: 1px solid #f3f4f6; flex-shrink: 0;
+    }
+    #browse-list {
+      overflow-y: auto; flex: 1; padding: 6px 0;
+      -webkit-overflow-scrolling: touch;
+    }
+    .browse-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 11px 20px; cursor: pointer;
+      transition: background 0.12s ease;
+      border-bottom: 1px solid #f9fafb;
+    }
+    .browse-item:hover  { background: #f0fdf9; }
+    .browse-item:active { background: #e0faf3; }
+    .browse-item:last-child { border-bottom: none; }
+    .browse-item-logo {
+      width: 44px; height: 44px; border-radius: 10px;
+      object-fit: contain; flex-shrink: 0; background: #f3f4f6;
+    }
+    .browse-item-logo-fallback {
+      width: 44px; height: 44px; border-radius: 10px; flex-shrink: 0;
+      background: linear-gradient(135deg, #00C9A0, #4FACFE);
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--font); font-size: 20px; font-weight: 900; color: #fff;
+    }
+    .browse-item-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .browse-item-name {
+      font-family: var(--font); font-size: 15px; font-weight: 700; color: #111827;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .browse-item-venue {
+      font-family: var(--font); font-size: 12px; color: #6b7280; font-weight: 600;
     }
 
     @media (max-width: 600px) {
@@ -267,6 +394,7 @@
       .fpill       { font-size: 11px; padding: 3px 8px; }
       #result-dialog { padding: 28px 24px 24px; }
       #result-name  { font-size: 18px; }
+      #browse-btn   { bottom: 20px; right: 16px; }
     }
   </style>
 </head>
@@ -288,7 +416,7 @@
       <h1 class="start-title">MakanGlobe</h1>
       <div class="start-rule"></div>
       <p class="start-sub">Spin the globe to discover your next restaurant!</p>
-      <p class="spin-how">↔ Drag in any direction &nbsp;·&nbsp; 📍 Tap a pin to pick it</p>
+      <p class="spin-how">↔ Drag in any direction &nbsp;·&nbsp; 📋 Browse restaurants below</p>
 
       <!-- Filters (shown after data loads) -->
       <div id="filter-wrap">
@@ -343,8 +471,18 @@
   <!-- HTML logo overlays (positioned by JS each frame) -->
   <div id="logo-layer"></div>
 
+  <!-- Swipe direction guide -->
+  <div id="swipe-guide">
+    <div class="sg-ring"></div>
+    <div class="sg-ring sg-r2"></div>
+    <div class="sg-arr sg-up">↑</div>
+    <div class="sg-arr sg-dn">↓</div>
+    <div class="sg-arr sg-lt">←</div>
+    <div class="sg-arr sg-rt">→</div>
+  </div>
+
   <!-- UI chrome -->
-  <div id="drag-hint">Drag to spin &nbsp;·&nbsp; Tap a pin to pick it</div>
+  <div id="drag-hint">Drag to spin &nbsp;·&nbsp; 📋 Browse All</div>
 
   <!-- Result dialog -->
   <div id="result-backdrop"></div>
@@ -357,8 +495,19 @@
     <button id="spin-again-btn">Spin Again ✨</button>
   </div>
 
+  <!-- Browse FAB + bottom sheet -->
+  <button id="browse-btn">📋 Browse All</button>
+  <div id="browse-backdrop"></div>
+  <div id="browse-sheet">
+    <div id="browse-sheet-handle"></div>
+    <div id="browse-sheet-title">Choose a Restaurant</div>
+    <div id="browse-list"></div>
+  </div>
+
   <!-- Restaurant data (defines loadFBShops, pickRandom as globals) -->
   <script src="data.js"></script>
+  <!-- TopoJSON client for country border decoding -->
+  <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
 
   <!-- Game logic — module script deferred after DOM; data.js globals are available -->
   <script type="module">
@@ -392,6 +541,7 @@
     IDLE_SPEED:    0.0014,   // idle auto-rotate speed (rad/frame, yaw)
     DRAG_SENSE:    0.005,    // radians-per-pixel for drag
     MIN_COAST_V:   0.004,    // min release speed to enter coast phase
+    MIN_SPIN_DIST: 160,      // min drag distance (px) for a spin to count
     IMPULSE:       0.11,     // base impulse magnitude for spin button
     VEL_AVG:       5,        // velocity history frames to average on release
     TICK_THRESH:   0.65,     // accumulated angle (rad) between tick sounds
@@ -411,6 +561,7 @@
     markers:   [],      // [{sprite, shop, localPos}]
     allShops:  [],
     tickAcc:   0,       // accumulated angle for tick sounds
+    totalDist: 0,       // accumulated drag distance (px) for current gesture
   };
 
   /* ── FILTERS ─────────────────────────────────────────────────────────────── */
@@ -567,8 +718,70 @@
   fillLight.position.set(-3, -2, 2);
   scene.add(fillLight);
 
+  // Rim light — back-fill creates edge glow (blue halo on dark side of globe)
+  const rimLight = new THREE.DirectionalLight(0x2255ff, 1.8);
+  rimLight.position.set(-2, 0.5, -6);
+  scene.add(rimLight);
+
+  // Atmosphere halo — soft BackSide sphere, not in globeGroup so it never rotates
+  scene.add(new THREE.Mesh(
+    new THREE.SphereGeometry(CFG.GLOBE_R * 1.14, 32, 24),
+    new THREE.MeshPhongMaterial({
+      color: 0x0066cc, transparent: true, opacity: 0.13,
+      side: THREE.BackSide, depthWrite: false,
+    })
+  ));
+
+  // Starfield — 750 points on a large shell
+  (function() {
+    const N = 750, pos = new Float32Array(N * 3);
+    for (let i = 0; i < N; i++) {
+      const theta = 2 * Math.PI * Math.random();
+      const phi   = Math.acos(2 * Math.random() - 1);
+      const r     = 28 + Math.random() * 14;
+      pos[i*3]   = r * Math.sin(phi) * Math.cos(theta);
+      pos[i*3+1] = r * Math.sin(phi) * Math.sin(theta);
+      pos[i*3+2] = r * Math.cos(phi);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    scene.add(new THREE.Points(geo, new THREE.PointsMaterial({
+      color: 0xffffff, size: 0.09, sizeAttenuation: true,
+      transparent: true, opacity: 0.82,
+    })));
+  })();
+
+  // Globe corona — smooth bell-curve halo ring at the globe silhouette
+  (function() {
+    const SZ  = 512;
+    const c   = document.createElement('canvas');
+    c.width   = c.height = SZ;
+    const ctx = c.getContext('2d');
+    const gr  = ctx.createRadialGradient(SZ/2, SZ/2, 0, SZ/2, SZ/2, SZ/2);
+    gr.addColorStop(0,    'rgba(0,0,0,0)');
+    gr.addColorStop(0.52, 'rgba(0,0,0,0)');
+    gr.addColorStop(0.62, 'rgba(20,90,240,0.06)');
+    gr.addColorStop(0.68, 'rgba(35,140,255,0.22)');
+    gr.addColorStop(0.73, 'rgba(55,170,255,0.42)');
+    gr.addColorStop(0.76, 'rgba(65,185,255,0.52)'); // peak
+    gr.addColorStop(0.80, 'rgba(45,155,255,0.38)');
+    gr.addColorStop(0.86, 'rgba(20,100,230,0.18)');
+    gr.addColorStop(0.93, 'rgba(5,50,200,0.05)');
+    gr.addColorStop(1.0,  'rgba(0,0,0,0)');
+    ctx.fillStyle = gr;
+    ctx.fillRect(0, 0, SZ, SZ);
+    const mat = new THREE.SpriteMaterial({
+      map: new THREE.CanvasTexture(c),
+      transparent: true, depthWrite: false, depthTest: true,
+    });
+    const s = new THREE.Sprite(mat);
+    s.scale.set(5.8, 5.8, 1);
+    scene.add(s);
+  })();
+
   /* ── GLOBE GROUP ─────────────────────────────────────────────────────────── */
   const globeGroup = new THREE.Group();
+  globeGroup.rotation.z = -0.25; // natural axial tilt
   scene.add(globeGroup);
 
   // Sphere — deep navy, PBR material (no specular colour, no orange glow)
@@ -602,7 +815,51 @@
         pts.push(new THREE.Vector3().setFromSpherical(new THREE.Spherical(GR, (90 - lat) * DEG, theta)));
       globeGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), mat));
     }
+    // Equator — brighter accent ring
+    const eqPts = [];
+    for (let lon = 0; lon <= 360; lon += 2)
+      eqPts.push(new THREE.Vector3().setFromSpherical(new THREE.Spherical(GR, Math.PI / 2, lon * DEG)));
+    globeGroup.add(new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints(eqPts),
+      new THREE.LineBasicMaterial({ color: 0x55bbff, transparent: true, opacity: 0.40, depthWrite: false })
+    ));
   })();
+
+  /* ── WORLD COUNTRY BORDERS ───────────────────────────────────────────────── */
+  async function loadWorldBorders() {
+    try {
+      const resp = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json');
+      const topo  = await resp.json();
+      const geo   = window.topojson.feature(topo, topo.objects.countries);
+      const DEG   = Math.PI / 180;
+      const R     = CFG.GLOBE_R + 0.014;
+      const mat   = new THREE.LineBasicMaterial({
+        color: 0x5599dd, transparent: true, opacity: 0.28, depthWrite: false,
+      });
+
+      for (const feature of geo.features) {
+        const { type, coordinates } = feature.geometry;
+        // Build array of outer rings
+        const rings = type === 'Polygon'
+          ? [coordinates[0]]
+          : coordinates.map(p => p[0]); // MultiPolygon outer rings
+
+        for (const ring of rings) {
+          if (!ring || ring.length < 2) continue;
+          const pts = ring.map(([lon, lat]) =>
+            new THREE.Vector3().setFromSpherical(
+              new THREE.Spherical(R, (90 - lat) * DEG, lon * DEG)
+            )
+          );
+          globeGroup.add(new THREE.Line(
+            new THREE.BufferGeometry().setFromPoints(pts), mat
+          ));
+        }
+      }
+    } catch (e) {
+      console.warn('MakanGlobe: could not load world borders', e);
+    }
+  }
 
   /* ── MARKER SPRITES ──────────────────────────────────────────────────────── */
   // logoImg is an HTMLImageElement or null (falls back to initial letter)
@@ -834,12 +1091,14 @@
 
   function onDown(e) {
     if (S.phase === 'stopped') return;
+    hideSwipeGuide();
     initAudio();
     const { x, y } = getXY(e);
     S.drag = true;
     S.dragPX = x; S.dragPY = y;
     S.velX = 0; S.velY = 0;
     S.vHistX = []; S.vHistY = [];
+    S.totalDist = 0;
     if (S.phase === 'coasting' || S.phase === 'snapping') stopWhoosh();
     S.phase = 'dragging';
   }
@@ -849,6 +1108,7 @@
     const { x, y } = getXY(e);
     const dx = x - S.dragPX, dy = y - S.dragPY;
     S.dragPX = x; S.dragPY = y;
+    S.totalDist += Math.hypot(dx, dy);
 
     const vx = dy * CFG.DRAG_SENSE; // up/down drag → pitch
     const vy = dx * CFG.DRAG_SENSE; // left/right drag → yaw
@@ -867,31 +1127,19 @@
     S.velY = avg(S.vHistY);
     S.vHistX = []; S.vHistY = [];
 
+    // Tiny drag — don't count it, return to idle
+    if (S.totalDist < CFG.MIN_SPIN_DIST) {
+      S.phase = 'idle';
+      return;
+    }
+
     const speed = Math.hypot(S.velX, S.velY);
     if (speed > CFG.MIN_COAST_V) {
       S.phase = 'coasting';
       startWhoosh();
     } else {
-      checkRaycast(e);
-      if (S.phase !== 'snapping') beginSnap(null);
+      beginSnap(null);
     }
-  }
-
-  /* ── RAYCASTER (tap-to-select) ───────────────────────────────────────────── */
-  const raycaster = new THREE.Raycaster();
-  const _mouse    = new THREE.Vector2();
-
-  function checkRaycast(e) {
-    const { x, y } = getXY(e);
-    _mouse.set((x / window.innerWidth) * 2 - 1, -(y / window.innerHeight) * 2 + 1);
-    raycaster.setFromCamera(_mouse, camera);
-
-    const visSprites = S.markers.filter(m => m.sprite.material.opacity > 0.5).map(m => m.sprite);
-    const hits = raycaster.intersectObjects(visSprites);
-    if (!hits.length) return;
-
-    const tapped = S.markers.find(m => m.sprite === hits[0].object);
-    if (tapped) beginSnap(tapped);
   }
 
   /* ── EVENT WIRING ────────────────────────────────────────────────────────── */
@@ -948,10 +1196,89 @@
     buildMarkers(pickRandom(getFilteredShops(), CFG.MARKER_N));
     S.tickAcc = 0;
     S.phase = 'idle';
+    showSwipeGuide(1600);
   }
 
   document.getElementById('spin-again-btn').addEventListener('click', doSpinAgain);
   document.getElementById('result-backdrop').addEventListener('click', doSpinAgain);
+
+  /* ── BROWSE SHEET ────────────────────────────────────────────────────────── */
+  const browseBtn      = document.getElementById('browse-btn');
+  const browseBackdrop = document.getElementById('browse-backdrop');
+  const browseSheet    = document.getElementById('browse-sheet');
+  const browseList     = document.getElementById('browse-list');
+
+  function makeBrowseFallback(shop) {
+    const fb = document.createElement('div');
+    fb.className = 'browse-item-logo-fallback';
+    fb.textContent = (shop.title || '?')[0].toUpperCase();
+    return fb;
+  }
+
+  function openBrowse() {
+    const shops = getFilteredShops().slice().sort((a, b) =>
+      (a.title || '').localeCompare(b.title || '')
+    );
+    browseList.innerHTML = '';
+    for (const shop of shops) {
+      const item = document.createElement('div');
+      item.className = 'browse-item';
+
+      if (shop.logo) {
+        const img = document.createElement('img');
+        img.className = 'browse-item-logo';
+        img.src = shop.logo;
+        img.onerror = () => img.replaceWith(makeBrowseFallback(shop));
+        item.appendChild(img);
+      } else {
+        item.appendChild(makeBrowseFallback(shop));
+      }
+
+      const info = document.createElement('div');
+      info.className = 'browse-item-info';
+      const name = document.createElement('div');
+      name.className = 'browse-item-name';
+      name.textContent = shop.title || 'Unknown';
+      info.appendChild(name);
+      if (shop.venue) {
+        const venue = document.createElement('div');
+        venue.className = 'browse-item-venue';
+        venue.textContent = shop.venue + (shop.level_label ? ' · ' + shop.level_label : '');
+        info.appendChild(venue);
+      }
+      item.appendChild(info);
+
+      item.addEventListener('click', () => {
+        closeBrowse();
+        initAudio();
+        playReveal();
+        setTimeout(() => { playDialog(); showResult(shop); }, 300);
+      });
+      browseList.appendChild(item);
+    }
+    browseBackdrop.classList.add('visible');
+    browseSheet.classList.add('visible');
+  }
+
+  function closeBrowse() {
+    browseBackdrop.classList.remove('visible');
+    browseSheet.classList.remove('visible');
+  }
+
+  browseBtn.addEventListener('click', openBrowse);
+  browseBackdrop.addEventListener('click', closeBrowse);
+
+  /* ── SWIPE GUIDE ─────────────────────────────────────────────────────────── */
+  const swipeGuide = document.getElementById('swipe-guide');
+  let _sgTimer = null;
+  function showSwipeGuide(delay) {
+    clearTimeout(_sgTimer);
+    _sgTimer = setTimeout(() => swipeGuide.classList.add('visible'), delay ?? 900);
+  }
+  function hideSwipeGuide() {
+    clearTimeout(_sgTimer);
+    swipeGuide.classList.remove('visible');
+  }
 
   /* ── RENDER LOOP ─────────────────────────────────────────────────────────── */
   function animate() {
@@ -989,11 +1316,13 @@
         overlay.style.pointerEvents = 'none';
 
         setTimeout(() => {
-          overlay.style.display = 'none';
+          overlay.style.display  = 'none';
           buildMarkers(pickRandom(getFilteredShops(), CFG.MARKER_N));
-          hintEl.style.display  = 'block';
+          hintEl.style.display   = 'block';
+          browseBtn.style.display = 'block';
           S.phase   = 'idle';
           S.tickAcc = 0;
+          showSwipeGuide(1400); // show after globe has had a moment to spin
           // animate() is already running — started before init()
         }, 430);
       }, { once: true });
@@ -1006,6 +1335,8 @@
 
   // Start the render loop immediately so the globe spins behind the start card
   animate();
+  // Load country borders in background (adds to scene whenever ready)
+  loadWorldBorders();
   // Then load data and set up the start screen UI
   init();
   </script>
