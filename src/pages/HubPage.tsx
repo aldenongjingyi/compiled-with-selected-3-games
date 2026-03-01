@@ -36,10 +36,10 @@ export default function HubPage({ theme, onToggleTheme }: Props) {
         {/* Hero */}
         <div className="mb-8">
           <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-makan-brown dark:text-white mb-1">
-            What's for Makan? 🍱
+            Interactive Demo Showcase
           </h1>
           <p className="text-makan-brown-2 dark:text-slate-400 text-sm font-semibold">
-            {GAMES.length} fun ways to pick your next meal
+            Tap any experience below to explore — built for Sunway Malls
           </p>
         </div>
 
@@ -93,7 +93,7 @@ export default function HubPage({ theme, onToggleTheme }: Props) {
       </main>
 
       <footer className="max-w-5xl mx-auto px-4 sm:px-6 pb-8 text-center text-xs text-makan-brown-muted dark:text-slate-600 font-semibold">
-        MakanHub by Map72 · Restaurant data sourced from Sunway Malls
+        Map72 Game Studio · Interactive demos for Sunway Malls
       </footer>
     </div>
   )
