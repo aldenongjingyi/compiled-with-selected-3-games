@@ -2,6 +2,7 @@ import type { GameEntry } from '../types/game'
 import MakanBoxThumbnail from '../components/thumbnails/MakanBoxThumbnail'
 import MakanGlobeThumbnail from '../components/thumbnails/MakanGlobeThumbnail'
 import MakanSpaceThumbnail from '../components/thumbnails/MakanSpaceThumbnail'
+import MakanDiceThumbnail from '../components/thumbnails/MakanDiceThumbnail'
 
 /**
  * Central game registry — the single source of truth for all game metadata.
@@ -47,6 +48,17 @@ export const GAMES: GameEntry[] = [
     stats: {},
     thumbnailComponent: MakanSpaceThumbnail,
     url: 'games/makanspace.html',
+  },
+  {
+    id: 'makandice',
+    title: 'MakanDice',
+    description:
+      'Roll the die — each face hides a restaurant. Tap to tumble, land on a face, and eat there!',
+    category: 'Randomiser',
+    tags: ['casual', 'food', '3d'],
+    stats: {},
+    thumbnailComponent: MakanDiceThumbnail,
+    url: 'games/makandice.html',
   },
   {
     id: 'coming-soon',

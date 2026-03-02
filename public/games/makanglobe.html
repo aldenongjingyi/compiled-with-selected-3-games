@@ -729,15 +729,16 @@
     MARKER_R:      2.16,     // marker sprite radius (just outside sphere)
     MARKER_N:      48,       // restaurant markers to show
     CAM_Z:         5.2,      // camera Z position
-    FRICTION:      0.960,    // per-frame velocity decay while coasting
+    FRICTION:      0.970,    // per-frame velocity decay at low speed
+    FRICTION_FAST: 0.993,    // per-frame decay at high speed (long satisfying coast)
     SNAP_LERP:     0.09,     // slerp factor per frame during snap
     SNAP_DONE:     0.0008,   // angle threshold (rad) to finish snap
     IDLE_SPEED:    0.0014,   // idle auto-rotate speed (rad/frame, yaw)
     DRAG_SENSE:    0.005,    // radians-per-pixel for drag
-    MIN_COAST_V:   0.004,    // min release speed to enter coast phase
+    MIN_COAST_V:   0.003,    // min release speed to enter coast phase
     // MIN_SPIN_DIST is computed dynamically in onUp (20% of shorter viewport dim)
     IMPULSE:       0.11,     // base impulse magnitude for spin button
-    VEL_AVG:       5,        // velocity history frames to average on release
+    VEL_AVG:       3,        // velocity history frames to average on release
     TICK_THRESH:   0.65,     // accumulated angle (rad) between tick sounds
     PALETTE: ['#FF6B35', '#EF476F', '#06D6A0', '#C45AFF', '#FFD23F', '#5BA8FF'],
   };
@@ -840,27 +841,50 @@
   }
 
   let wNode = null, wGain = null, wFlt = null;
+  let wOsc1 = null, wOsc2 = null, wOscGain = null;
   function startWhoosh() {
     if (!audioCtx || wNode) return;
+    // Smooth wind — lowpass filtered noise (not bandpass → no grainy/sand sound)
     const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 2, audioCtx.sampleRate);
     const d = buf.getChannelData(0);
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
     wNode = audioCtx.createBufferSource(); wNode.buffer = buf; wNode.loop = true;
-    wFlt  = audioCtx.createBiquadFilter(); wFlt.type = 'bandpass'; wFlt.frequency.value = 200; wFlt.Q.value = 0.8;
+    wFlt  = audioCtx.createBiquadFilter(); wFlt.type = 'lowpass'; wFlt.frequency.value = 250; wFlt.Q.value = 0.5;
     wGain = audioCtx.createGain(); wGain.gain.value = 0;
     wNode.connect(wFlt); wFlt.connect(wGain); wGain.connect(audioCtx.destination);
     wNode.start();
+    // Tonal hum — two slightly detuned sines create a spinning/rotating quality
+    wOsc1 = audioCtx.createOscillator(); wOsc1.type = 'sine'; wOsc1.frequency.value = 85;
+    wOsc2 = audioCtx.createOscillator(); wOsc2.type = 'sine'; wOsc2.frequency.value = 88;
+    wOscGain = audioCtx.createGain(); wOscGain.gain.value = 0;
+    wOsc1.connect(wOscGain); wOsc2.connect(wOscGain); wOscGain.connect(audioCtx.destination);
+    wOsc1.start(); wOsc2.start();
   }
   function updateWhoosh(speed) {
     if (!wFlt || !wGain) return;
     const t = audioCtx.currentTime + 0.05, n = Math.min(speed / CFG.IMPULSE, 1);
-    wFlt.frequency.linearRampToValueAtTime(200 + n * 2800, t);
-    wGain.gain.linearRampToValueAtTime(n * 0.12, t);
+    // Wind: gentle sweep — stays smooth, not harsh
+    wFlt.frequency.linearRampToValueAtTime(250 + n * 1000, t);
+    wGain.gain.linearRampToValueAtTime(n * 0.08, t);
+    // Hum: pitch rises with speed for a Doppler-like spin feel
+    if (wOsc1 && wOscGain) {
+      wOsc1.frequency.linearRampToValueAtTime(85 + n * 180, t);
+      wOsc2.frequency.linearRampToValueAtTime(88 + n * 185, t);
+      wOscGain.gain.linearRampToValueAtTime(n * 0.05, t);
+    }
   }
   function stopWhoosh() {
     if (!wNode) return;
-    wGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.1);
-    setTimeout(() => { try { wNode.stop(); } catch (e) {} wNode = wGain = wFlt = null; }, 200);
+    const fade = audioCtx.currentTime + 0.15;
+    wGain.gain.linearRampToValueAtTime(0, fade);
+    if (wOscGain) wOscGain.gain.linearRampToValueAtTime(0, fade);
+    setTimeout(() => {
+      try { wNode.stop(); } catch (e) {}
+      try { if (wOsc1) wOsc1.stop(); } catch (e) {}
+      try { if (wOsc2) wOsc2.stop(); } catch (e) {}
+      wNode = wGain = wFlt = null;
+      wOsc1 = wOsc2 = wOscGain = null;
+    }, 250);
   }
   function playStop() {
     if (!audioCtx) return;
@@ -1298,8 +1322,11 @@
     if (S.phase === 'coasting') {
       const speed = Math.hypot(S.velX, S.velY);
       rotateWorld(S.velX, S.velY);
-      S.velX *= CFG.FRICTION;
-      S.velY *= CFG.FRICTION;
+      // Speed-dependent friction: fast spins coast longer, slow spins wind down
+      const t = Math.min(speed / CFG.IMPULSE, 1);
+      const friction = CFG.FRICTION + (CFG.FRICTION_FAST - CFG.FRICTION) * t;
+      S.velX *= friction;
+      S.velY *= friction;
       updateWhoosh(speed);
 
       S.tickAcc += speed;
@@ -1367,9 +1394,15 @@
     if (!S.drag) return;
     S.drag = false;
 
-    const avg = arr => arr.length ? arr.reduce((a, b) => a + b) / arr.length : 0;
-    S.velX = avg(S.vHistX);
-    S.velY = avg(S.vHistY);
+    // Weighted average — recent samples count more so quick flicks register properly
+    const wavg = arr => {
+      if (!arr.length) return 0;
+      let sum = 0, wt = 0;
+      for (let i = 0; i < arr.length; i++) { const w = 1 + i; sum += arr[i] * w; wt += w; }
+      return sum / wt;
+    };
+    S.velX = wavg(S.vHistX);
+    S.velY = wavg(S.vHistY);
     S.vHistX = []; S.vHistY = [];
 
     const speed    = Math.hypot(S.velX, S.velY);
