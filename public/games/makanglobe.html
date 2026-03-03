@@ -751,6 +751,7 @@
     drag:      false,
     dragPX:    0, dragPY: 0,
     vHistX:    [], vHistY: [],
+    peakV:     0,
     snapQuat:  new THREE.Quaternion(),
     snapMark:  null,
     markers:   [],
@@ -1371,6 +1372,7 @@
     S.velX = 0; S.velY = 0;
     S.vHistX = []; S.vHistY = [];
     S.totalDist = 0;
+    S.peakV = 0;
     if (S.phase === 'coasting' || S.phase === 'snapping') stopWhoosh();
     S.phase = 'dragging';
   }
@@ -1386,6 +1388,7 @@
     const vy = dx * CFG.DRAG_SENSE;
     S.vHistX.push(vx); if (S.vHistX.length > CFG.VEL_AVG) S.vHistX.shift();
     S.vHistY.push(vy); if (S.vHistY.length > CFG.VEL_AVG) S.vHistY.shift();
+    S.peakV = Math.max(S.peakV, Math.hypot(vx, vy));
 
     rotateWorld(vx, vy);
   }
@@ -1394,7 +1397,7 @@
     if (!S.drag) return;
     S.drag = false;
 
-    // Weighted average — recent samples count more so quick flicks register properly
+    // Weighted average — recent samples count more so quick flicks register
     const wavg = arr => {
       if (!arr.length) return 0;
       let sum = 0, wt = 0;
@@ -1405,29 +1408,51 @@
     S.velY = wavg(S.vHistY);
     S.vHistX = []; S.vHistY = [];
 
-    const speed    = Math.hypot(S.velX, S.velY);
-    const shortDim = Math.min(window.innerWidth, window.innerHeight);
+    let speed = Math.hypot(S.velX, S.velY);
 
-    // Hard floor: reject pure accidental taps (incidental finger drift)
-    if (S.totalDist < 12) {
+    // If peak frame velocity was higher than the average (finger decelerated
+    // before lift-off), scale the velocity vector UP to 60 % of peak so the
+    // globe actually keeps spinning once we enter coasting.
+    const peakFloor = S.peakV * 0.6;
+    if (peakFloor > speed) {
+      if (speed > 0.0001) {
+        const scale = peakFloor / speed;
+        S.velX *= scale;
+        S.velY *= scale;
+      } else {
+        S.velY = peakFloor; S.velX = 0;
+      }
+      speed = Math.hypot(S.velX, S.velY);
+    }
+
+    // If the finger swiped a real distance but velocity is still low (common
+    // on mobile where touchmove events lag), guarantee a minimum spin.
+    if (speed < CFG.MIN_COAST_V && S.totalDist >= 30) {
+      const boost = CFG.MIN_COAST_V * 3;
+      if (speed > 0.0001) {
+        const scale = boost / speed;
+        S.velX *= scale;
+        S.velY *= scale;
+      } else {
+        S.velY = boost; S.velX = 0;
+      }
+      speed = Math.hypot(S.velX, S.velY);
+    }
+
+    // Reject accidental taps (tiny finger drift)
+    if (S.totalDist < 15) {
       S.phase = 'idle';
       return;
     }
 
-    // Clear velocity → always a valid spin, no distance check needed
-    if (speed > CFG.MIN_COAST_V) {
+    // Any meaningful velocity → coast (eventually snaps after slowing down)
+    if (speed >= CFG.MIN_COAST_V) {
       S.phase = 'coasting';
       startWhoosh();
       return;
     }
 
-    // Slow/stopped drag — needs enough distance to be intentional
-    if (S.totalDist < shortDim * 0.06) {
-      S.phase = 'idle';
-      if (S.gameStarted) showSpinToast();
-      return;
-    }
-
+    // Gentle drag — always snap to the geometrically closest restaurant
     beginSnap(null);
   }
 

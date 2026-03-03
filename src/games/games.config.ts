@@ -3,6 +3,7 @@ import MakanBoxThumbnail from '../components/thumbnails/MakanBoxThumbnail'
 import MakanGlobeThumbnail from '../components/thumbnails/MakanGlobeThumbnail'
 import MakanSpaceThumbnail from '../components/thumbnails/MakanSpaceThumbnail'
 import MakanDiceThumbnail from '../components/thumbnails/MakanDiceThumbnail'
+import MakanClawThumbnail from '../components/thumbnails/MakanClawThumbnail'
 
 /**
  * Central game registry — the single source of truth for all game metadata.
@@ -61,12 +62,14 @@ export const GAMES: GameEntry[] = [
     url: 'games/makandice.html',
   },
   {
-    id: 'coming-soon',
-    title: 'Coming Soon',
-    description: 'A new demo game is currently in development. Check back soon!',
-    category: 'Prototype',
-    tags: ['prototype'],
-    stats: { prototype: true },
-    url: '#',
+    id: 'makanclaw',
+    title: 'MakanClaw',
+    description:
+      'Aim the claw, drop it into the capsule pit, and grab your next restaurant pick!',
+    category: 'Randomiser',
+    tags: ['casual', 'food', 'arcade'],
+    stats: {},
+    thumbnailComponent: MakanClawThumbnail,
+    url: 'games/makanclaw.html',
   },
 ]

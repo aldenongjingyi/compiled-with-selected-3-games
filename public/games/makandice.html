@@ -14,7 +14,17 @@
 
     /* ── Game background ───────────────────────────────────── */
     body {
-      background: linear-gradient(160deg, #fff9f4 0%, #fef3e8 50%, #fde8d6 100%);
+      background:
+        /* warm glow centred behind the die */
+        radial-gradient(ellipse at 50% 46%, rgba(255,107,53,0.09) 0%, transparent 52%),
+        /* accent splashes — golden bottom-left, coral top-right */
+        radial-gradient(circle at 18% 82%, rgba(255,210,63,0.07) 0%, transparent 38%),
+        radial-gradient(circle at 82% 18%, rgba(239,71,111,0.05) 0%, transparent 34%),
+        /* dot pattern (matches makan-theme) */
+        radial-gradient(circle, rgba(255,107,53,0.09) 1.5px, transparent 1.5px),
+        /* base warm cream */
+        linear-gradient(160deg, #fff9f4 0%, #fef3e8 50%, #fde8d6 100%);
+      background-size: 100% 100%, 100% 100%, 100% 100%, 28px 28px, 100% 100%;
     }
 
     /* ── WebGL canvas ──────────────────────────────────────── */
@@ -23,7 +33,9 @@
       width: 100%; height: 100%; display: block;
       -webkit-tap-highlight-color: transparent;
       touch-action: none;
+      cursor: grab;
     }
+    #die-canvas:active { cursor: grabbing; }
 
     /* ── Roll hint ─────────────────────────────────────────── */
     #roll-hint {
@@ -222,7 +234,82 @@
       .reveal-venue { font-size: 12px; padding: 4px 12px; }
       .flabel { min-width: 38px; font-size: 9px; }
       .fpill  { font-size: 11px; padding: 3px 8px; }
+      #game-badge { top: calc(12px + env(safe-area-inset-top)); left: calc(12px + env(safe-area-inset-left)); }
     }
+
+    /* ── Swipe hint ───────────────────────────────────────── */
+    #swipe-hint {
+      position: fixed; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 80px; height: 80px;
+      pointer-events: none; z-index: 8;
+      opacity: 0; transition: opacity 0.9s ease;
+    }
+    #swipe-hint.visible { opacity: 1; }
+    .sh-arrow {
+      position: absolute;
+      font-family: var(--font); font-size: 22px; font-weight: 900;
+      color: var(--makan-orange);
+      text-shadow: 0 0 12px rgba(255,107,53,0.5);
+      animation: sh-pulse 2.0s ease-in-out infinite;
+    }
+    .sh-up { top: -38px; left: 50%; transform: translateX(-50%); }
+    .sh-dn { bottom: -38px; left: 50%; transform: translateX(-50%); }
+    .sh-lt { left: -38px; top: 50%; transform: translateY(-50%); }
+    .sh-rt { right: -38px; top: 50%; transform: translateY(-50%); }
+    @keyframes sh-pulse {
+      0%, 100% { opacity: 0.12; }
+      50% { opacity: 0.75; }
+    }
+
+    /* ── In-game brand badge ─────────────────────────────── */
+    #game-badge {
+      position: fixed; top: 16px; left: 16px;
+      z-index: 50; display: none;
+      padding: 7px 14px;
+      background: rgba(255,255,255,0.72); backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,107,53,0.18);
+      border-radius: 99px;
+      font-family: var(--font); font-size: 13px; font-weight: 800;
+      color: rgba(120,55,10,0.80); letter-spacing: -0.01em;
+    }
+
+    /* ── Drag hint ───────────────────────────────────────── */
+    #drag-hint {
+      position: fixed; top: 22px; left: 50%;
+      transform: translateX(-50%);
+      z-index: 100; pointer-events: none;
+      font-size: 11px; font-weight: 800;
+      color: rgba(120,55,10,0.72);
+      letter-spacing: 0.10em; text-transform: uppercase;
+      background: rgba(255,255,255,0.72); backdrop-filter: blur(8px);
+      padding: 7px 18px; border-radius: 99px;
+      border: 1px solid rgba(255,107,53,0.14);
+      opacity: 0; transition: opacity 0.6s ease;
+    }
+    #drag-hint.visible { opacity: 1; }
+
+    /* ── Shuffle FAB ─────────────────────────────────────── */
+    #refresh-btn {
+      position: fixed;
+      bottom: calc(28px + env(safe-area-inset-bottom));
+      left: calc(24px + env(safe-area-inset-left));
+      z-index: 20; display: none;
+      padding: 13px 20px;
+      background: rgba(255,255,255,0.72); backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,107,53,0.18);
+      color: rgba(120,55,10,0.80); border-radius: 50px;
+      font-family: var(--font); font-size: 13px; font-weight: 800;
+      cursor: pointer; letter-spacing: 0.02em;
+      transition: transform 0.15s cubic-bezier(0.34,1.56,0.64,1), background 0.15s ease;
+    }
+    #refresh-btn:hover  { background: rgba(255,255,255,0.88); transform: scale(1.08); }
+    #refresh-btn:active { transform: scale(0.95); }
+    @keyframes refresh-spin {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(360deg); }
+    }
+    #refresh-btn.spinning .rf-icon { display: inline-block; animation: refresh-spin 0.5s ease both; }
   </style>
 </head>
 <body>
@@ -297,7 +384,24 @@
   </div>
 
   <!-- ── Roll hint ─────────────────────────────────────────── -->
-  <div id="roll-hint" class="hidden">Tap to roll</div>
+  <div id="roll-hint" class="hidden">Swipe or tap to roll</div>
+
+  <!-- Swipe direction hint -->
+  <div id="swipe-hint">
+    <span class="sh-arrow sh-up">↑</span>
+    <span class="sh-arrow sh-dn">↓</span>
+    <span class="sh-arrow sh-lt">←</span>
+    <span class="sh-arrow sh-rt">→</span>
+  </div>
+
+  <!-- In-game brand badge (top-left) -->
+  <div id="game-badge">🎲 MakanDice</div>
+
+  <!-- UI chrome -->
+  <div id="drag-hint">Swipe to roll</div>
+
+  <!-- Shuffle FAB -->
+  <button id="refresh-btn"><span class="rf-icon">🔀</span> Shuffle</button>
 
   <!-- ── Backdrop ──────────────────────────────────────────── -->
   <div id="backdrop"></div>
@@ -345,7 +449,6 @@
 
   let allShops      = [];
   let activeFilters = new Set();
-  let gameStarted   = false;
 
   function getFilteredShops() {
     if (activeFilters.size === 0) return allShops;
@@ -399,40 +502,109 @@
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   }
 
-  function playRollSound() {
+  // Rolling rumble — continuous during tumble (lowpass noise + detuned hum)
+  let rumNode = null, rumGain = null, rumFlt = null;
+  let rumOsc1 = null, rumOsc2 = null, rumOscGain = null;
+
+  function startRumble() {
+    if (!audioCtx || rumNode) return;
+    const sr = audioCtx.sampleRate;
+    const buf = audioCtx.createBuffer(1, sr * 2, sr);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    rumNode = audioCtx.createBufferSource(); rumNode.buffer = buf; rumNode.loop = true;
+    rumFlt = audioCtx.createBiquadFilter(); rumFlt.type = 'lowpass'; rumFlt.frequency.value = 200; rumFlt.Q.value = 0.4;
+    rumGain = audioCtx.createGain(); rumGain.gain.value = 0;
+    rumNode.connect(rumFlt); rumFlt.connect(rumGain); rumGain.connect(audioCtx.destination);
+    rumNode.start();
+    rumOsc1 = audioCtx.createOscillator(); rumOsc1.type = 'sine'; rumOsc1.frequency.value = 55;
+    rumOsc2 = audioCtx.createOscillator(); rumOsc2.type = 'sine'; rumOsc2.frequency.value = 58;
+    rumOscGain = audioCtx.createGain(); rumOscGain.gain.value = 0;
+    rumOsc1.connect(rumOscGain); rumOsc2.connect(rumOscGain); rumOscGain.connect(audioCtx.destination);
+    rumOsc1.start(); rumOsc2.start();
+  }
+
+  function updateRumble(speed) {
+    if (!rumFlt || !rumGain) return;
+    const t = audioCtx.currentTime + 0.05, n = Math.min(speed / 14, 1);
+    rumFlt.frequency.linearRampToValueAtTime(200 + n * 600, t);
+    rumGain.gain.linearRampToValueAtTime(n * 0.06, t);
+    if (rumOsc1 && rumOscGain) {
+      rumOsc1.frequency.linearRampToValueAtTime(55 + n * 80, t);
+      rumOsc2.frequency.linearRampToValueAtTime(58 + n * 82, t);
+      rumOscGain.gain.linearRampToValueAtTime(n * 0.04, t);
+    }
+  }
+
+  function stopRumble() {
+    if (!rumNode) return;
+    const fade = audioCtx.currentTime + 0.12;
+    rumGain.gain.linearRampToValueAtTime(0, fade);
+    if (rumOscGain) rumOscGain.gain.linearRampToValueAtTime(0, fade);
+    setTimeout(() => {
+      try { rumNode.stop(); } catch(e) {}
+      try { if (rumOsc1) rumOsc1.stop(); } catch(e) {}
+      try { if (rumOsc2) rumOsc2.stop(); } catch(e) {}
+      rumNode = rumGain = rumFlt = null;
+      rumOsc1 = rumOsc2 = rumOscGain = null;
+    }, 200);
+  }
+
+  // Periodic clack as die faces rotate past (like a die hitting the table)
+  function playClack(vol) {
     if (!audioCtx) return;
-    const t = audioCtx.currentTime;
-    // Tumbling rattle: layered noise burst
-    [0, 0.08, 0.18, 0.30].forEach((delay, i) => {
-      const intensity = 0.5 + i * 0.12;
-      const dur = 0.07 + intensity * 0.06;
-      const buf = audioCtx.createBuffer(1, Math.ceil(audioCtx.sampleRate * dur), audioCtx.sampleRate);
-      const d   = buf.getChannelData(0);
-      for (let j = 0; j < d.length; j++)
-        d[j] = (Math.random() * 2 - 1) * Math.pow(1 - j / d.length, 1.6);
-      const src = audioCtx.createBufferSource(); src.buffer = buf;
-      const lp  = audioCtx.createBiquadFilter();
-      lp.type = 'lowpass'; lp.frequency.value = 200 + i * 60; lp.Q.value = 1.2;
-      const g = audioCtx.createGain();
-      g.gain.setValueAtTime(0.18 + intensity * 0.25, t + delay);
-      g.gain.exponentialRampToValueAtTime(0.001, t + delay + dur + 0.05);
-      src.connect(lp); lp.connect(g); g.connect(audioCtx.destination);
-      src.start(t + delay); src.stop(t + delay + dur + 0.06);
-    });
+    const now = audioCtx.currentTime, dur = 0.03, sr = audioCtx.sampleRate;
+    const buf = audioCtx.createBuffer(1, Math.ceil(sr * dur), sr);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2);
+    const src = audioCtx.createBufferSource(); src.buffer = buf;
+    const flt = audioCtx.createBiquadFilter(); flt.type = 'lowpass'; flt.frequency.value = 1400; flt.Q.value = 0.7;
+    const g = audioCtx.createGain();
+    g.gain.setValueAtTime(Math.min(0.18, vol * 0.18), now);
+    g.gain.exponentialRampToValueAtTime(0.001, now + dur);
+    src.connect(flt); flt.connect(g); g.connect(audioCtx.destination);
+    src.start(now); src.stop(now + dur + 0.01);
+  }
+
+  // Initial throw impact
+  function playRollKick() {
+    if (!audioCtx) return;
+    const now = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator(); osc.type = 'sine';
+    osc.frequency.setValueAtTime(150, now);
+    osc.frequency.exponentialRampToValueAtTime(45, now + 0.08);
+    const g = audioCtx.createGain();
+    g.gain.setValueAtTime(0, now);
+    g.gain.linearRampToValueAtTime(0.22, now + 0.005);
+    g.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+    osc.connect(g); g.connect(audioCtx.destination);
+    osc.start(now); osc.stop(now + 0.18);
   }
 
   function playLand() {
     if (!audioCtx) return;
-    const t = audioCtx.currentTime;
+    const now = audioCtx.currentTime;
     const osc = audioCtx.createOscillator(); osc.type = 'sine';
-    osc.frequency.setValueAtTime(120, t);
-    osc.frequency.exponentialRampToValueAtTime(55, t + 0.12);
+    osc.frequency.setValueAtTime(120, now);
+    osc.frequency.exponentialRampToValueAtTime(50, now + 0.14);
     const g = audioCtx.createGain();
-    g.gain.setValueAtTime(0, t);
-    g.gain.linearRampToValueAtTime(0.28, t + 0.008);
-    g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+    g.gain.setValueAtTime(0, now);
+    g.gain.linearRampToValueAtTime(0.30, now + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
     osc.connect(g); g.connect(audioCtx.destination);
-    osc.start(t); osc.stop(t + 0.25);
+    osc.start(now); osc.stop(now + 0.28);
+    // Settle rattle
+    const dur2 = 0.025;
+    const buf = audioCtx.createBuffer(1, Math.ceil(audioCtx.sampleRate * dur2), audioCtx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2.5);
+    const src = audioCtx.createBufferSource(); src.buffer = buf;
+    const flt = audioCtx.createBiquadFilter(); flt.type = 'lowpass'; flt.frequency.value = 600; flt.Q.value = 0.5;
+    const g2 = audioCtx.createGain();
+    g2.gain.setValueAtTime(0.12, now + 0.06);
+    g2.gain.exponentialRampToValueAtTime(0.001, now + 0.06 + dur2);
+    src.connect(flt); flt.connect(g2); g2.connect(audioCtx.destination);
+    src.start(now + 0.06); src.stop(now + 0.06 + dur2 + 0.01);
   }
 
   function playChime() {
@@ -531,80 +703,67 @@
 
   function makeFaceMaterial(shop, colorIdx) {
     const sz  = 512;
+    const cx  = sz / 2, cy = sz / 2;   // dead-centre
+    const R   = 185;                     // logo circle radius (~72% of face)
     const cv  = Object.assign(document.createElement('canvas'), { width: sz, height: sz });
     const ctx = cv.getContext('2d');
     const pal = PALETTE[colorIdx % PALETTE.length];
 
-    function drawBase() {
+    function drawFace(img) {
       ctx.clearRect(0, 0, sz, sz);
+      // Clean white face
       ctx.fillStyle = '#FAFAFA';
       ctx.fillRect(0, 0, sz, sz);
-      // Color accent strip at top
+      // Subtle colour accent — thin bottom edge
       ctx.fillStyle = pal.c;
-      ctx.fillRect(0, 0, sz, 66);
-    }
+      ctx.fillRect(0, sz - 8, sz, 8);
 
-    function drawName() {
-      ctx.save();
-      const name = shop.title || '?';
-      ctx.fillStyle = '#1a0a00';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'bottom';
-      ctx.font = '800 32px Nunito, sans-serif';
-      if (ctx.measureText(name).width > sz - 48) ctx.font = '800 24px Nunito, sans-serif';
-      ctx.fillText(name.slice(0, 22), sz / 2, sz - 22);
-      ctx.restore();
-    }
-
-    function drawCircleContent(img) {
-      drawBase();
       if (img) {
-        // White circle bg
+        // White backing circle
         ctx.fillStyle = '#ffffff';
-        ctx.beginPath(); ctx.arc(sz / 2, 288, 118, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(cx, cy, R + 6, 0, Math.PI * 2); ctx.fill();
         // Logo clipped to circle
         ctx.save();
-        ctx.beginPath(); ctx.arc(sz / 2, 288, 107, 0, Math.PI * 2); ctx.clip();
-        ctx.drawImage(img, sz / 2 - 107, 288 - 107, 214, 214);
+        ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.clip();
+        ctx.drawImage(img, cx - R, cy - R, R * 2, R * 2);
         ctx.restore();
-        // Color border ring
-        ctx.strokeStyle = pal.c; ctx.lineWidth = 7;
-        ctx.beginPath(); ctx.arc(sz / 2, 288, 118, 0, Math.PI * 2); ctx.stroke();
+        // Thin coloured border ring
+        ctx.strokeStyle = pal.c; ctx.lineWidth = 5;
+        ctx.beginPath(); ctx.arc(cx, cy, R + 3, 0, Math.PI * 2); ctx.stroke();
       } else {
-        // Solid color circle with initial
+        // Solid colour circle with initial letter
         ctx.fillStyle = pal.c;
-        ctx.beginPath(); ctx.arc(sz / 2, 288, 108, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = '#ffffff';
-        ctx.font = '900 112px Nunito, sans-serif';
+        ctx.font = '900 160px Nunito, sans-serif';
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText((shop.title || '?')[0].toUpperCase(), sz / 2, 288);
+        ctx.fillText((shop.title || '?')[0].toUpperCase(), cx, cy);
       }
-      drawName();
       tex.needsUpdate = true;
     }
 
-    // Draw immediate fallback (no logo yet)
-    drawBase();
+    // Immediate fallback — coloured circle + initial
+    ctx.fillStyle = '#FAFAFA'; ctx.fillRect(0, 0, sz, sz);
+    ctx.fillStyle = pal.c; ctx.fillRect(0, sz - 8, sz, 8);
     ctx.fillStyle = pal.c;
-    ctx.beginPath(); ctx.arc(sz / 2, 288, 108, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#ffffff';
-    ctx.font = '900 112px Nunito, sans-serif';
+    ctx.font = '900 160px Nunito, sans-serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText((shop.title || '?')[0].toUpperCase(), sz / 2, 288);
-    drawName();
+    ctx.fillText((shop.title || '?')[0].toUpperCase(), cx, cy);
 
     const tex = new THREE.CanvasTexture(cv);
     tex.colorSpace = THREE.SRGBColorSpace;
 
     if (shop.logo) {
       const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.onload  = () => drawCircleContent(img);
-      img.onerror = () => drawCircleContent(null);
-      img.src = shop.logo;
+      img.onload  = () => drawFace(img);
+      img.onerror = () => drawFace(null);
+      // Route through Vite proxy to avoid CORS block (server has no CORS headers)
+      img.src = shop.logo.replace('https://sunwaymalls.indoorcms.com', '/cdn');
     }
 
-    return new THREE.MeshStandardMaterial({ map: tex, roughness: 0.68, metalness: 0.02 });
+    return new THREE.MeshStandardMaterial({ map: tex, roughness: 0.55, metalness: 0.03 });
   }
 
   // ── Die mesh ──────────────────────────────────────────────
@@ -645,28 +804,207 @@
   // Derived by rotating each face's local normal through FACE_QUATS[i] and finding which lands on +Z
   const FACE_QUAT_TO_MAT = [4, 1, 5, 0, 2, 3];
 
-  // ── Roll state ────────────────────────────────────────────
-  let phase      = 'idle';  // idle | rolling | snapping | reveal
-  let dieQ       = new THREE.Quaternion();
-  let rollAxis   = new THREE.Vector3();
-  let rollSpeed  = 0;
-  let rollTimer  = 0;
-  let snapTimer  = 0;
-  let snapStartQ = new THREE.Quaternion();
-  let targetQ    = new THREE.Quaternion();
-  let idleTime   = 0;
-  let dieY       = 0;
-  let pendingShop = null;
-  let pendingCI   = 0;
-  let revealShown = false;
+  // ── Config ────────────────────────────────────────────────
+  const CFG = {
+    FRICTION:      0.975,    // angular velocity decay at low speed
+    FRICTION_FAST: 0.993,    // angular velocity decay at high speed (long satisfying tumble)
+    MIN_ROLL_V:    0.25,     // angular speed (rad/s) threshold before snap
+    SNAP_LERP:     0.12,     // slerp factor per frame during snap
+    DRAG_SENSE:    0.012,    // radians per pixel of drag
+    TAP_IMPULSE:   14,       // default roll speed (rad/s) for a tap
+    MAX_IMPULSE:   24,       // max roll speed from swipe
+    TICK_THRESH:   Math.PI / 3,  // rotation (rad) between clack sounds
+    IDLE_SPEED:    0.50,     // idle rotation (rad/s)
+  };
   const IDLE_AXIS = new THREE.Vector3(0.20, 1, 0.14).normalize();
-  const ROLL_DUR  = 1.85;
-  const SNAP_DUR  = 0.52;
 
-  // Hover via raycasting
+  // ── State ────────────────────────────────────────────────
+  const S = {
+    phase:       'idle',  // idle | dragging | rolling | snapping | reveal
+    dieQ:        new THREE.Quaternion(),
+    angVel:      new THREE.Vector3(),   // angular velocity (rad/s)
+    drag:        false,
+    dragPX: 0, dragPY: 0,
+    vHistX: [], vHistY: [],
+    peakV:       0,
+    totalDist:   0,
+    tickAcc:     0,
+    idleTime:    0,
+    dieY:        0,
+    snapQ:       new THREE.Quaternion(),
+    pendingShop: null,
+    pendingCI:   0,
+    revealShown: false,
+    gameStarted: false,
+  };
+
+  // ── Swipe hint ──────────────────────────────────────────
+  const swipeHintEl = document.getElementById('swipe-hint');
+  let _shTimer = null;
+  function showSwipeHint(delay) {
+    clearTimeout(_shTimer);
+    _shTimer = setTimeout(() => swipeHintEl?.classList.add('visible'), delay ?? 900);
+  }
+  function hideSwipeHint() {
+    clearTimeout(_shTimer);
+    swipeHintEl?.classList.remove('visible');
+  }
+
+  // ── Snap: find geometrically nearest clean face ─────────
+  function beginSnap() {
+    let bestIdx = 0, bestAngle = Infinity;
+    for (let i = 0; i < FACE_QUATS.length; i++) {
+      const a = S.dieQ.angleTo(FACE_QUATS[i]);
+      if (a < bestAngle) { bestAngle = a; bestIdx = i; }
+    }
+    S.snapQ.copy(FACE_QUATS[bestIdx]);
+    if (S.dieQ.dot(S.snapQ) < 0) {
+      S.snapQ.x *= -1; S.snapQ.y *= -1; S.snapQ.z *= -1; S.snapQ.w *= -1;
+    }
+    const matIdx = FACE_QUAT_TO_MAT[bestIdx];
+    S.pendingShop = currentShops[matIdx] || currentShops[0];
+    S.pendingCI = matIdx % PALETTE.length;
+    S.phase = 'snapping';
+  }
+
+  function onLanded() {
+    S.dieY = 0;
+    playLand();
+    if (navigator.vibrate) navigator.vibrate(40);
+    S.revealShown = true;
+    dieCanvas.style.cursor = 'grab';
+    setTimeout(() => {
+      playChime();
+      showReveal(S.pendingShop, S.pendingCI);
+      document.getElementById('backdrop').classList.add('visible');
+      document.getElementById('reroll-btn').style.display = 'block';
+      S.phase = 'reveal';
+    }, 280);
+  }
+
+  // ── Pointer events ──────────────────────────────────────
+  function getXY(e) {
+    if (e.touches?.length) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    if (e.changedTouches?.length) return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+    return { x: e.clientX, y: e.clientY };
+  }
+
+  function onDown(e) {
+    if ((S.phase !== 'idle' && S.phase !== 'reveal') || !S.gameStarted) return;
+    // If reveal is showing, dismiss it first and treat as new interaction
+    if (S.phase === 'reveal') { dismiss(); return; }
+    initAudio();
+    hideSwipeHint();
+    const { x, y } = getXY(e);
+    S.drag = true;
+    S.dragPX = x; S.dragPY = y;
+    S.vHistX = []; S.vHistY = [];
+    S.totalDist = 0;
+    S.peakV = 0;
+    S.phase = 'dragging';
+  }
+
+  function onMove(e) {
+    if (!S.drag) return;
+    const { x, y } = getXY(e);
+    const dx = x - S.dragPX, dy = y - S.dragPY;
+    S.dragPX = x; S.dragPY = y;
+    S.totalDist += Math.hypot(dx, dy);
+
+    const vx = dx * CFG.DRAG_SENSE;
+    const vy = dy * CFG.DRAG_SENSE;
+    S.vHistX.push(vx); if (S.vHistX.length > 3) S.vHistX.shift();
+    S.vHistY.push(vy); if (S.vHistY.length > 3) S.vHistY.shift();
+    S.peakV = Math.max(S.peakV, Math.hypot(vx, vy));
+
+    // Rock die in swipe direction + lift slightly during drag
+    if (die) {
+      const rockX = vy * 0.25;
+      const rockY = vx * 0.25;
+      const rq = new THREE.Quaternion().setFromEuler(new THREE.Euler(rockX, rockY, 0));
+      S.dieQ.premultiply(rq);
+      S.dieQ.normalize();
+      S.dieY = Math.min(S.totalDist * 0.003, 0.4);
+    }
+  }
+
+  function onUp() {
+    if (!S.drag) return;
+    S.drag = false;
+    if (!S.gameStarted) { S.phase = 'idle'; return; }
+
+    // Weighted average — recent frames count more
+    const wavg = arr => {
+      if (!arr.length) return 0;
+      let sum = 0, wt = 0;
+      for (let i = 0; i < arr.length; i++) { const w = 1 + i; sum += arr[i] * w; wt += w; }
+      return sum / wt;
+    };
+    let vx = wavg(S.vHistX);
+    let vy = wavg(S.vHistY);
+    S.vHistX = []; S.vHistY = [];
+    let speed = Math.hypot(vx, vy);
+
+    // Peak velocity boost (captures quick flicks that decelerate before release)
+    const peakFloor = S.peakV * 0.6;
+    if (peakFloor > speed) {
+      if (speed > 0.0001) { const s = peakFloor / speed; vx *= s; vy *= s; }
+      else { vx = peakFloor; vy = 0; }
+      speed = Math.hypot(vx, vy);
+    }
+
+    // Convert to angular speed (rad/s)
+    const rollSpeed = Math.min(speed * 60, CFG.MAX_IMPULSE);
+
+    if (S.totalDist >= 15 && rollSpeed >= 3) {
+      // Swipe — directional throw, speed proportional to swipe force
+      const axis = new THREE.Vector3(vy, vx, (Math.random() - 0.5) * speed * 0.3).normalize();
+      S.angVel.copy(axis).multiplyScalar(Math.max(rollSpeed, 8));
+      startRoll();
+    } else {
+      // Tap or gentle touch — random throw at default speed
+      launchRoll(CFG.TAP_IMPULSE + Math.random() * 4);
+    }
+  }
+
+  function launchRoll(speed) {
+    const axis = new THREE.Vector3(
+      (Math.random() - 0.5) * 2,
+      (Math.random() - 0.5) * 2,
+      (Math.random() - 0.5) * 0.8
+    ).normalize();
+    S.angVel.copy(axis).multiplyScalar(speed);
+    startRoll();
+  }
+
+  function startRoll() {
+    S.phase = 'rolling';
+    S.tickAcc = 0;
+    S.revealShown = false;
+    document.getElementById('roll-hint').classList.add('hidden');
+    document.getElementById('drag-hint').classList.remove('visible');
+    dieCanvas.style.cursor = 'wait';
+    startRumble();
+    playRollKick();
+  }
+
+  function dismiss() {
+    hideReveal();
+    document.getElementById('backdrop').classList.remove('visible');
+    document.getElementById('reroll-btn').style.display = 'none';
+    S.phase = 'idle';
+    S.idleTime = 0;
+    S.dieY = 0;
+    dieCanvas.style.cursor = 'grab';
+    document.getElementById('roll-hint').classList.remove('hidden');
+    document.getElementById('drag-hint').classList.add('visible');
+    showSwipeHint(1600);
+  }
+
+  // ── Hover detection ─────────────────────────────────────
   const raycaster = new THREE.Raycaster();
-  const mouse     = new THREE.Vector2(-9999, -9999);
-  let dieHovered  = false;
+  const mouse = new THREE.Vector2(-9999, -9999);
+  let dieHovered = false;
 
   dieCanvas.addEventListener('mousemove', e => {
     mouse.x =  (e.clientX / innerWidth)  * 2 - 1;
@@ -675,51 +1013,7 @@
   dieCanvas.addEventListener('mouseleave', () => {
     mouse.set(-9999, -9999);
     dieHovered = false;
-    dieCanvas.style.cursor = 'default';
   });
-
-  function rollDie() {
-    if (phase !== 'idle' || !gameStarted) return;
-    const pool = getFilteredShops();
-    if (!pool.length) return;
-
-    phase      = 'rolling';
-    rollTimer  = 0;
-    revealShown = false;
-
-    // Random tumble axis + speed
-    rollAxis.set(
-      (Math.random() - 0.5) * 2,
-      (Math.random() - 0.5) * 2,
-      (Math.random() - 0.5) * 0.8,
-    ).normalize();
-    rollSpeed = 13 + Math.random() * 7;
-
-    // Pick a clean landing orientation
-    const faceIdx = Math.floor(Math.random() * FACE_QUATS.length);
-    targetQ.copy(FACE_QUATS[faceIdx]);
-    // Ensure slerp takes shortest path
-    if (dieQ.dot(targetQ) < 0) { targetQ.x *= -1; targetQ.y *= -1; targetQ.z *= -1; targetQ.w *= -1; }
-
-    // Which restaurant is on the face now pointing toward camera?
-    const matIdx = FACE_QUAT_TO_MAT[faceIdx];
-    pendingShop = currentShops[matIdx] || currentShops[0];
-    pendingCI   = matIdx % PALETTE.length;
-
-    document.getElementById('roll-hint').classList.add('hidden');
-    dieCanvas.style.cursor = 'wait';
-    playRollSound();
-  }
-
-  function dismiss() {
-    hideReveal();
-    document.getElementById('backdrop').classList.remove('visible');
-    document.getElementById('reroll-btn').style.display = 'none';
-    phase    = 'idle';
-    idleTime = 0;
-    dieY     = 0;
-    document.getElementById('roll-hint').classList.remove('hidden');
-  }
 
   // ── Animation loop ────────────────────────────────────────
   const _tmpV3 = new THREE.Vector3();
@@ -730,79 +1024,80 @@
     const dt = Math.min((now - lastT) / 1000, 0.05);
     lastT = now;
 
-    if (phase === 'idle') {
-      idleTime += dt;
-      dieY = Math.sin(idleTime * 1.05) * 0.072;
-
-      // Slow continuous rotation
-      const idleRot = new THREE.Quaternion().setFromAxisAngle(IDLE_AXIS, dt * 0.50);
-      dieQ.premultiply(idleRot);
-      dieQ.normalize();
-
-      // Hover detection
-      if (gameStarted && die) {
+    if (S.phase === 'idle' || S.phase === 'dragging') {
+      if (S.phase === 'idle') {
+        S.idleTime += dt;
+        S.dieY = Math.sin(S.idleTime * 1.05) * 0.072;
+        const idleRot = new THREE.Quaternion().setFromAxisAngle(IDLE_AXIS, dt * CFG.IDLE_SPEED);
+        S.dieQ.premultiply(idleRot);
+        S.dieQ.normalize();
+      }
+      // Hover — only in idle (not while dragging)
+      if (S.gameStarted && die && S.phase === 'idle') {
         raycaster.setFromCamera(mouse, camera);
         const hits = raycaster.intersectObject(die);
-        const wasHovered = dieHovered;
+        const wasH = dieHovered;
         dieHovered = hits.length > 0;
-        if (dieHovered !== wasHovered) {
-          dieCanvas.style.cursor = dieHovered ? 'pointer' : 'default';
+        if (dieHovered !== wasH) {
+          dieCanvas.style.cursor = dieHovered ? 'pointer' : 'grab';
         }
         const ts = dieHovered ? 1.055 : 1.0;
         _tmpV3.set(ts, ts, ts);
         die.scale.lerp(_tmpV3, 0.09);
+      } else if (die && S.phase === 'dragging') {
+        // "Grabbed" scale during drag
+        _tmpV3.set(1.06, 1.06, 1.06);
+        die.scale.lerp(_tmpV3, 0.12);
       }
 
-    } else if (phase === 'rolling') {
-      rollTimer += dt;
-      const t = Math.min(1, rollTimer / ROLL_DUR);
+    } else if (S.phase === 'rolling') {
+      const speed = S.angVel.length();
+      // Apply rotation
+      if (speed > 0.01) {
+        const axis = S.angVel.clone().normalize();
+        const dq = new THREE.Quaternion().setFromAxisAngle(axis, speed * dt);
+        S.dieQ.premultiply(dq);
+        S.dieQ.normalize();
+      }
+      // Speed-dependent friction: fast rolls coast longer
+      const t = Math.min(speed / CFG.MAX_IMPULSE, 1);
+      const friction = Math.pow(CFG.FRICTION + (CFG.FRICTION_FAST - CFG.FRICTION) * t, 60 * dt);
+      S.angVel.multiplyScalar(friction);
 
-      // Cubic ease-out deceleration
-      const speed = rollSpeed * Math.pow(1 - t, 1.9);
-      const dq = new THREE.Quaternion().setFromAxisAngle(rollAxis, speed * dt);
-      dieQ.premultiply(dq);
-      dieQ.normalize();
+      updateRumble(speed);
 
-      // Subtle vertical jitter while rolling
-      dieY = -Math.abs(Math.sin(rollTimer * 8.5)) * 0.08 * (1 - t * t);
-
-      if (t >= 1) {
-        phase     = 'snapping';
-        snapTimer = 0;
-        snapStartQ.copy(dieQ);
-        // Re-check dot for shortest slerp path
-        if (snapStartQ.dot(targetQ) < 0) { targetQ.x *= -1; targetQ.y *= -1; targetQ.z *= -1; targetQ.w *= -1; }
-        dieCanvas.style.cursor = 'default';
+      // Periodic clack as die faces rotate past
+      S.tickAcc += speed * dt;
+      if (S.tickAcc >= CFG.TICK_THRESH) {
+        playClack(Math.min(1, speed / CFG.TAP_IMPULSE));
+        S.tickAcc -= CFG.TICK_THRESH;
       }
 
-    } else if (phase === 'snapping') {
-      snapTimer += dt;
-      const t = Math.min(1, snapTimer / SNAP_DUR);
-      // Smooth ease in-out
-      const e = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
-      dieQ.slerpQuaternions(snapStartQ, targetQ, e);
-      // Soft settle dip
-      dieY = -Math.sin(t * Math.PI) * 0.05;
+      // Y jitter — smooth transition from drag lift, bouncing on table feel
+      const jitterY = -Math.abs(Math.sin(S.tickAcc * 4)) * 0.06 * Math.min(1, speed / 5);
+      S.dieY += (jitterY - S.dieY) * 0.15;
 
-      if (t >= 1 && !revealShown) {
-        revealShown = true;
-        dieY = 0;
-        playLand();
-        setTimeout(() => {
-          playChime();
-          showReveal(pendingShop, pendingCI);
-          document.getElementById('backdrop').classList.add('visible');
-          document.getElementById('reroll-btn').style.display = 'block';
-          // Die gently idles in background while reveal is shown
-          phase    = 'idle';
-          idleTime = 0;
-        }, 240);
+      // Scale back to normal
+      if (die) { _tmpV3.set(1, 1, 1); die.scale.lerp(_tmpV3, 0.1); }
+
+      if (speed < CFG.MIN_ROLL_V) {
+        stopRumble();
+        beginSnap();
+      }
+
+    } else if (S.phase === 'snapping') {
+      S.dieQ.slerp(S.snapQ, CFG.SNAP_LERP);
+      S.dieY += (0 - S.dieY) * 0.12; // settle to ground
+      if (die) { _tmpV3.set(1, 1, 1); die.scale.lerp(_tmpV3, 0.1); }
+      if (S.dieQ.angleTo(S.snapQ) < 0.005) {
+        S.dieQ.copy(S.snapQ);
+        if (!S.revealShown) onLanded();
       }
     }
 
     if (die) {
-      die.setRotationFromQuaternion(dieQ);
-      die.position.y = dieY;
+      die.setRotationFromQuaternion(S.dieQ);
+      die.position.y = S.dieY;
     }
 
     renderer.render(scene, camera);
@@ -811,12 +1106,14 @@
   // Start loop
   requestAnimationFrame(t => { lastT = t; requestAnimationFrame(animate); });
 
-  // ── Input ─────────────────────────────────────────────────
-  dieCanvas.addEventListener('click', rollDie);
-  dieCanvas.addEventListener('touchend', e => {
-    e.preventDefault();
-    rollDie();
-  }, { passive: false });
+  // ── Input wiring ──────────────────────────────────────────
+  dieCanvas.addEventListener('mousedown', onDown);
+  dieCanvas.addEventListener('mousemove', onMove);
+  window.addEventListener('mouseup', onUp);
+  dieCanvas.addEventListener('touchstart', e => { e.preventDefault(); onDown(e); }, { passive: false });
+  dieCanvas.addEventListener('touchmove', e => { e.preventDefault(); onMove(e); }, { passive: false });
+  window.addEventListener('touchend', onUp);
+  window.addEventListener('touchcancel', onUp);
 
   // ── Reveal ────────────────────────────────────────────────
   function triggerPopIn(el) {
@@ -901,7 +1198,30 @@
   document.getElementById('reroll-btn').addEventListener('click', () => {
     dismiss();
     buildDie(pick6(getFilteredShops()));
-    setTimeout(rollDie, 90);
+    setTimeout(() => launchRoll(CFG.TAP_IMPULSE + Math.random() * 4), 90);
+  });
+
+  // ── Shuffle FAB — swap restaurants on the die ──────────
+  const refreshBtn = document.getElementById('refresh-btn');
+  refreshBtn.addEventListener('click', () => {
+    buildDie(pick6(getFilteredShops()));
+    S.tickAcc = 0;
+    S.phase = 'idle';
+    S.idleTime = 0;
+    document.getElementById('drag-hint').classList.add('visible');
+    showSwipeHint(1600);
+    // Spin the icon once as tactile confirmation
+    refreshBtn.classList.add('spinning');
+    setTimeout(() => refreshBtn.classList.remove('spinning'), 520);
+  });
+
+  // Pause physics when tab is hidden (saves CPU/battery on kiosk)
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && S.phase === 'rolling') {
+      stopRumble();
+      S.angVel.set(0, 0, 0);
+      S.phase = 'idle';
+    }
   });
 
   // ── Init ──────────────────────────────────────────────────
@@ -920,17 +1240,21 @@
         if (tapBtn.disabled) return;
         initAudio();
         buildDie(pick6(getFilteredShops()));
-        overlay.style.opacity      = '0';
+        overlay.style.opacity       = '0';
         overlay.style.pointerEvents = 'none';
         setTimeout(() => {
           overlay.style.display = 'none';
-          gameStarted = true;
+          S.gameStarted = true;
           document.getElementById('roll-hint').classList.remove('hidden');
+          document.getElementById('drag-hint').classList.add('visible');
+          document.getElementById('game-badge').style.display = 'block';
+          refreshBtn.style.display = 'block';
+          showSwipeHint(1400);
         }, 420);
       }, { once: true });
 
     } catch (e) {
-      console.error('MakanBox:', e);
+      console.error('MakanDice:', e);
       loadState.innerHTML = `<p style="color:var(--makan-coral);font-weight:700;font-size:14px">
         Could not load restaurant data.<br>Please check data.js is available.</p>`;
     }
