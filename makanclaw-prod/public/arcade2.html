@@ -2550,10 +2550,11 @@ class MakanClawGame {
       const result = await GameAPI.redeemVoucher(phone, ball.voucher.id);
 
       if (result.success) {
-        // Success — show confirmation, hide form
+        // Success — show confirmation, hide form permanently
         redeemForm.style.display = 'none';
         redeemSuccess.style.display = 'block';
         redeemBtn.style.display = 'none';
+        return; // Don't re-enable button after success
       } else {
         // Error — show error dialog
         document.getElementById('error-dialog-msg').textContent =
@@ -2566,6 +2567,7 @@ class MakanClawGame {
       errorDialog.style.display = 'flex';
     }
 
+    // Re-enable only on error (user can retry)
     redeemBtn.disabled = false;
     redeemBtn.textContent = 'REDEEM NOW';
   }
